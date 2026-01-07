@@ -1,4 +1,4 @@
-/* style.css - Jewels-Ai Atelier: Premium Gallery with Navigation */
+/* style.css - Jewels-Ai Atelier: Voice Toggle UI */
 
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@400;600&display=swap');
 
@@ -56,11 +56,25 @@ body {
 .brand-left { display: flex; align-items: center; }
 .brand-logo { height: 40px; }
 
-#snapshot-btn {
-  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
-  padding: 10px; border-radius: 50%; cursor: pointer; color: white; font-size: 20px; transition: all 0.2s;
+/* Action Row (New) */
+.action-row {
+    display: flex; gap: 15px; align-items: center;
 }
-#snapshot-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.3); }
+
+/* Buttons (Snapshot & Voice) */
+#snapshot-btn, #voice-btn {
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
+  padding: 0; border-radius: 50%; cursor: pointer; color: white; font-size: 20px; transition: all 0.2s;
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+}
+#snapshot-btn:active, #voice-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.3); }
+
+/* Voice OFF State */
+.voice-off {
+    color: #ff5555 !important;
+    border-color: #ff5555 !important;
+    background: rgba(255, 85, 85, 0.1) !important;
+}
 
 /* --- 5. BOTTOM CONTROLS --- */
 .controls-panel {
@@ -101,7 +115,7 @@ body {
 }
 .preview-actions { margin-top: 20px; display: flex; gap: 15px; }
 
-/* --- LIGHTBOX NAVIGATION (NEW) --- */
+/* Lightbox Nav */
 .lightbox-nav {
     position: absolute; top: 50%; transform: translateY(-50%);
     font-size: 50px; color: rgba(255,255,255,0.6); cursor: pointer;
@@ -111,8 +125,7 @@ body {
 .prev { left: 10px; }
 .next { right: 10px; }
 
-
-/* --- 7. NEW PREMIUM GALLERY UI --- */
+/* --- 7. PREMIUM GALLERY UI --- */
 .gallery-content {
     background: rgba(18, 18, 18, 0.95); 
     width: 90%; max-width: 900px; height: 80vh;
@@ -124,7 +137,6 @@ body {
     position: relative;
     overflow: hidden;
 }
-
 .gallery-content h2 {
     margin-top: 0; margin-bottom: 20px;
     font-size: 26px; text-transform: uppercase; letter-spacing: 2px;
@@ -133,63 +145,34 @@ body {
     border-bottom: 1px solid rgba(255,255,255,0.1);
     padding-bottom: 15px;
 }
-
 #gallery-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 15px;
-    overflow-y: auto;
-    padding: 10px;
-    flex-grow: 1;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 15px; overflow-y: auto; padding: 10px; flex-grow: 1;
 }
-
-/* Custom Gold Scrollbar */
 #gallery-grid::-webkit-scrollbar { width: 6px; }
 #gallery-grid::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
 #gallery-grid::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
 
-/* Gallery Card Design */
 .gallery-card {
-    position: relative;
-    aspect-ratio: 3/4;
-    border-radius: 12px;
-    overflow: hidden;
-    cursor: pointer;
-    background: #000;
-    border: 1px solid rgba(255,255,255,0.1);
+    position: relative; aspect-ratio: 3/4; border-radius: 12px; overflow: hidden;
+    cursor: pointer; background: #000; border: 1px solid rgba(255,255,255,0.1);
     transition: transform 0.3s ease, border-color 0.3s ease;
 }
-
-.gallery-card:hover {
-    transform: translateY(-5px);
-    border-color: var(--accent);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-}
-
-.gallery-img {
-    width: 100%; height: 100%; object-fit: cover;
-    transition: transform 0.5s ease;
-}
+.gallery-card:hover { transform: translateY(-5px); border-color: var(--accent); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+.gallery-img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
 .gallery-card:hover .gallery-img { transform: scale(1.1); }
-
-/* Overlay on Hover */
 .gallery-overlay {
     position: absolute; bottom: 0; left: 0; right: 0;
     background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
-    padding: 20px 10px 10px 10px;
-    display: flex; justify-content: space-between; align-items: flex-end;
-    opacity: 0; transform: translateY(10px);
-    transition: all 0.3s ease;
+    padding: 20px 10px 10px 10px; display: flex; justify-content: space-between; align-items: flex-end;
+    opacity: 0; transform: translateY(10px); transition: all 0.3s ease;
 }
 .gallery-card:hover .gallery-overlay { opacity: 1; transform: translateY(0); }
-
 .overlay-text { font-size: 11px; color: #fff; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 .overlay-icon { font-size: 14px; color: var(--accent); }
 
-/* Close Buttons */
 .close-preview, .close-gallery, .close-lightbox {
-    position: absolute; top: 15px; right: 20px;
-    font-size: 30px; color: #888; cursor: pointer; z-index: 2001; transition: color 0.2s;
+    position: absolute; top: 15px; right: 20px; font-size: 30px; color: #888; cursor: pointer; z-index: 2001; transition: color 0.2s;
 }
 .close-preview:hover, .close-gallery:hover, .close-lightbox:hover { color: var(--accent); }
 

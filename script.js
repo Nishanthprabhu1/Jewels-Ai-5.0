@@ -1,4 +1,4 @@
-/* script.js - Jewels-Ai Atelier: Smoother Voice (Reduced Beeps) */
+/* script.js - Jewels-Ai Atelier: Voice Toggle Button Enabled */
 
 /* --- CONFIGURATION --- */
 const API_KEY = "AIzaSyAXG3iG2oQjUA_BpnO8dK8y-MHJ7HLrhyE"; 
@@ -34,6 +34,10 @@ let previousHandX = null;
 /* Gallery State */
 let currentLightboxIndex = 0;
 
+/* Voice State (New) */
+let recognition = null;
+let voiceEnabled = true; // Default ON
+
 /* Physics State */
 let physics = { earringVelocity: 0, earringAngle: 0 };
 
@@ -54,12 +58,12 @@ function triggerFlash() {
     setTimeout(() => { flashOverlay.classList.remove('flash-active'); }, 300);
 }
 
-/* --- 2. VOICE RECOGNITION AI (UPDATED) --- */
+/* --- 2. VOICE RECOGNITION AI (UPDATED: With Toggle) --- */
 function initVoiceControl() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
+        recognition = new SpeechRecognition(); // Assign to global variable
         recognition.continuous = true; 
         recognition.interimResults = false;
         recognition.lang = 'en-US';
@@ -71,12 +75,13 @@ function initVoiceControl() {
             processVoiceCommand(command);
         };
 
-        // UPDATED: Added 1-second delay to prevent rapid beep loops
+        // Smart Restart (Only if enabled)
         recognition.onend = () => {
-            // console.log("Voice ended. Waiting to restart...");
-            setTimeout(() => {
-                try { recognition.start(); } catch(e) { /* Already started */ }
-            }, 1000); 
+            if (voiceEnabled) {
+                setTimeout(() => {
+                    try { recognition.start(); } catch(e) { }
+                }, 1000); 
+            }
         };
 
         recognition.onerror = (event) => { console.warn("Voice Error:", event.error); };
@@ -84,6 +89,28 @@ function initVoiceControl() {
         try { recognition.start(); } catch(e) { console.log("Voice start error", e); }
     } else {
         console.warn("Voice API not supported.");
+        // Hide button if not supported
+        const btn = document.getElementById('voice-btn');
+        if(btn) btn.style.display = 'none';
+    }
+}
+
+function toggleVoiceControl() {
+    const btn = document.getElementById('voice-btn');
+    if(!recognition) return;
+
+    if (voiceEnabled) {
+        // Turn OFF
+        voiceEnabled = false;
+        recognition.stop();
+        btn.innerHTML = '🔇';
+        btn.classList.add('voice-off');
+    } else {
+        // Turn ON
+        voiceEnabled = true;
+        try { recognition.start(); } catch(e) {}
+        btn.innerHTML = '🎙️';
+        btn.classList.remove('voice-off');
     }
 }
 
@@ -434,4 +461,4 @@ window.closeGallery = closeGallery; window.closeLightbox = closeLightbox; window
 window.downloadAllAsZip = downloadAllAsZip; window.closePreview = closePreview;
 window.downloadSingleSnapshot = downloadSingleSnapshot; window.shareSingleSnapshot = shareSingleSnapshot;
 window.confirmWhatsAppDownload = confirmWhatsAppDownload; window.closeWhatsAppModal = closeWhatsAppModal;
-window.changeLightboxImage = changeLightboxImage;
+window.changeLightboxImage = changeLightboxImage; window.toggleVoiceControl = toggleVoiceControl;
