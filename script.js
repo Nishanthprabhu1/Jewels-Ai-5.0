@@ -1,4 +1,4 @@
-/* script.js - Jewels-Ai Atelier: Flash, Names & Premium Gallery */
+/* script.js - Jewels-Ai Atelier: Flash, Names & Premium Gallery Navigation */
 
 /* --- CONFIGURATION --- */
 const API_KEY = "AIzaSyAXG3iG2oQjUA_BpnO8dK8y-MHJ7HLrhyE"; 
@@ -30,6 +30,9 @@ let isProcessingHand = false, isProcessingFace = false;
 let lastGestureTime = 0;
 const GESTURE_COOLDOWN = 800; 
 let previousHandX = null;     
+
+/* Gallery State */
+let currentLightboxIndex = 0;
 
 /* Physics State */
 let physics = { earringVelocity: 0, earringAngle: 0 };
@@ -72,7 +75,7 @@ function processVoiceCommand(cmd) {
     else if (cmd.includes('back') || cmd.includes('previous')) navigateJewelry(-1);
     else if (cmd.includes('photo') || cmd.includes('capture')) takeSnapshot();
     else if (cmd.includes('earring')) selectJewelryType('earrings');
-    else if (cmd.includes('chain')) selectJewelryType('chains');
+    else if (cmd.includes('chain') || selectJewelryType('chains'));
     else if (cmd.includes('ring')) selectJewelryType('rings');
     else if (cmd.includes('bangle')) selectJewelryType('bangles');
 }
@@ -367,33 +370,36 @@ function takeSnapshot() {
     document.getElementById('preview-image').src = shotData.url; document.getElementById('preview-modal').style.display = 'flex'; 
 }
 
-/* --- UPDATED: PREMIUM GALLERY SHOW LOGIC --- */
+/* --- LIGHTBOX LOGIC --- */
+function changeLightboxImage(direction) {
+    if (autoSnapshots.length === 0) return;
+    currentLightboxIndex = (currentLightboxIndex + direction + autoSnapshots.length) % autoSnapshots.length;
+    document.getElementById('lightbox-image').src = autoSnapshots[currentLightboxIndex].url;
+}
+
+/* --- GALLERY UI LOGIC --- */
 function showGallery() {
   const grid = document.getElementById('gallery-grid'); grid.innerHTML = '';
   
   if (autoSnapshots.length === 0) {
       grid.innerHTML = '<p style="color:#666; width:100%; text-align:center;">No photos yet.</p>';
   } else {
-      autoSnapshots.forEach((item) => {
-        // Create Card Wrapper
+      autoSnapshots.forEach((item, index) => {
         const card = document.createElement('div'); card.className = "gallery-card";
-        
-        // Image
         const img = document.createElement('img'); img.src = item.url; img.className = "gallery-img";
-        
-        // Overlay (New Premium Feature)
         const overlay = document.createElement('div'); overlay.className = "gallery-overlay";
         
-        // Display Name Logic (Cleaner)
         let cleanName = item.name.replace("Jewels-Ai_", "").replace(".png", "").replace(/_\d+$/, "");
         if(cleanName.length > 15) cleanName = cleanName.substring(0,12) + "...";
         
-        overlay.innerHTML = `
-            <span class="overlay-text">${cleanName}</span>
-            <div class="overlay-icon">🔍</div>
-        `;
+        overlay.innerHTML = `<span class="overlay-text">${cleanName}</span><div class="overlay-icon">🔍</div>`;
 
-        card.onclick = () => { document.getElementById('lightbox-image').src = item.url; document.getElementById('lightbox-overlay').style.display = 'flex'; };
+        // Update click to set index
+        card.onclick = () => { 
+            currentLightboxIndex = index;
+            document.getElementById('lightbox-image').src = item.url; 
+            document.getElementById('lightbox-overlay').style.display = 'flex'; 
+        };
         
         card.appendChild(img); card.appendChild(overlay); grid.appendChild(card);
       });
@@ -411,3 +417,4 @@ window.closeGallery = closeGallery; window.closeLightbox = closeLightbox; window
 window.downloadAllAsZip = downloadAllAsZip; window.closePreview = closePreview;
 window.downloadSingleSnapshot = downloadSingleSnapshot; window.shareSingleSnapshot = shareSingleSnapshot;
 window.confirmWhatsAppDownload = confirmWhatsAppDownload; window.closeWhatsAppModal = closeWhatsAppModal;
+window.changeLightboxImage = changeLightboxImage;
