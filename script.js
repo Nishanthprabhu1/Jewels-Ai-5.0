@@ -1,8 +1,8 @@
-/* script.js - Jewels-Ai Atelier: No Device Data */
+/* script.js - Jewels-Ai Atelier: Multi-Photo Upload Fix */
 
 /* --- CONFIGURATION --- */
 const API_KEY = "AIzaSyAXG3iG2oQjUA_BpnO8dK8y-MHJ7HLrhyE"; 
-// Your existing URL is preserved here:
+// Your existing Backend URL
 const UPLOAD_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzQ_NtdlyLxqsYib4V0qq-37O4RuBpAysHDqZDv7uPG7nlzgJDftc_frGDikDyRXqZF0A/exec";
 
 const DRIVE_FOLDERS = {
@@ -175,17 +175,28 @@ function confirmWhatsAppDownload() {
     }, 1500);
 }
 
+// ✅ UPDATED: Loop through ALL images for Try All
 function uploadToDrive(phone) {
-    const data = pendingDownloadAction === 'single' ? currentPreviewData : (autoSnapshots[0] || {}); 
-    if(!data.url) return;
+    if (pendingDownloadAction === 'single') {
+        if(currentPreviewData.url) sendDataToBackend(phone, currentPreviewData);
+    } else {
+        // It is 'zip' (Try All) -> Send ALL snapshots
+        if (autoSnapshots.length > 0) {
+            autoSnapshots.forEach(imgData => {
+                sendDataToBackend(phone, imgData);
+            });
+        }
+    }
+}
 
+// ✅ NEW HELPER FUNCTION to handle the fetch
+function sendDataToBackend(phone, imgData) {
     const sessionDuration = Math.floor((Date.now() - sessionStartTime) / 1000); 
     let topCategory = "None";
     try {
         topCategory = Object.keys(analytics.categoryCounts).reduce((a, b) => analytics.categoryCounts[a] > analytics.categoryCounts[b] ? a : b);
     } catch(e) {}
     
-    // Removed: Device Info
     const customer360 = {
         referrer: document.referrer || "Direct",
         duration_sec: sessionDuration,
@@ -199,8 +210,8 @@ function uploadToDrive(phone) {
         method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
             phone: phone, 
-            image: data.url, 
-            filename: data.name,
+            image: imgData.url,     // Send the specific image from the loop
+            filename: imgData.name, // Send the specific filename
             analytics: JSON.stringify(customer360) 
         })
     }).catch(err => console.error("Upload failed", err));
