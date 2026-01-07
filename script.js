@@ -1,4 +1,4 @@
-/* script.js - Jewels-Ai Atelier: Fixed Voice, Physics & Auto-Select First Item */
+/* script.js - Jewels-Ai Atelier: Flash Enabled */
 
 /* --- CONFIGURATION --- */
 const API_KEY = "AIzaSyAXG3iG2oQjUA_BpnO8dK8y-MHJ7HLrhyE"; 
@@ -21,7 +21,7 @@ const videoElement = document.getElementById('webcam');
 const canvasElement = document.getElementById('overlay');
 const canvasCtx = canvasElement.getContext('2d');
 const loadingStatus = document.getElementById('loading-status');
-const voiceStatusText = document.getElementById('voice-status-text');
+const flashOverlay = document.getElementById('flash-overlay'); // Added flash element
 
 /* App State */
 let earringImg = null, necklaceImg = null, ringImg = null, bangleImg = null;
@@ -45,49 +45,44 @@ let autoTryTimeout = null;
 let currentPreviewData = { url: null, name: 'Jewels-Ai_look.png' }; 
 let pendingDownloadAction = null; 
 
-/* --- 1. VOICE RECOGNITION AI (FIXED) --- */
+/* --- 1. FLASH EFFECT FUNCTION --- */
+function triggerFlash() {
+    if(!flashOverlay) return;
+    flashOverlay.classList.remove('flash-active'); 
+    void flashOverlay.offsetWidth; // Trigger reflow to restart animation
+    flashOverlay.classList.add('flash-active');
+    setTimeout(() => {
+        flashOverlay.classList.remove('flash-active');
+    }, 300);
+}
+
+/* --- 2. VOICE RECOGNITION AI --- */
 function initVoiceControl() {
-    // 1. Check Browser Support
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
-        recognition.continuous = true; // Keep listening
+        recognition.continuous = true; 
         recognition.interimResults = false;
         recognition.lang = 'en-US';
 
-        recognition.onstart = () => { 
-            document.getElementById('voice-indicator').style.display = 'flex';
-            if(voiceStatusText) voiceStatusText.innerText = "Listening...";
-        };
+        recognition.onstart = () => { };
 
         recognition.onresult = (event) => {
             const command = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
-            if(voiceStatusText) voiceStatusText.innerText = `Heard: "${command}"`;
             console.log("Voice Command:", command);
             processVoiceCommand(command);
-            
-            // Reset text after 2s
-            setTimeout(() => { if(voiceStatusText) voiceStatusText.innerText = "Listening..."; }, 2000);
         };
 
-        // 2. CRITICAL FIX: Restart on end (Keep-Alive)
         recognition.onend = () => {
-            console.log("Voice service ended, restarting...");
             try { recognition.start(); } catch(e) { /* Already started */ }
         };
 
-        recognition.onerror = (event) => { 
-            console.warn("Voice Error:", event.error);
-            if (event.error === 'not-allowed') {
-                alert("Please allow microphone access for Voice Commands.");
-            }
-        };
+        recognition.onerror = (event) => { console.warn("Voice Error:", event.error); };
 
         try { recognition.start(); } catch(e) { console.log("Voice start error", e); }
     } else {
-        console.warn("Voice API not supported in this browser.");
-        if(voiceStatusText) voiceStatusText.innerText = "Voice Not Supported";
+        console.warn("Voice API not supported.");
     }
 }
 
@@ -100,64 +95,6 @@ function processVoiceCommand(cmd) {
     else if (cmd.includes('ring')) selectJewelryType('rings');
     else if (cmd.includes('bangle')) selectJewelryType('bangles');
 }
-
-/* --- 2. CHATBOT LOGIC (FIXED) --- */
-function toggleChatbot() { 
-    const b = document.getElementById('chatbot-box'); 
-    if(b.style.display === 'flex') {
-        b.style.display = 'none';
-    } else {
-        b.style.display = 'flex';
-        // Focus input
-        setTimeout(() => document.getElementById('chat-input-field').focus(), 100);
-    }
-}
-
-function sendChatMessage() {
-    const input = document.getElementById('chat-input-field');
-    const msg = input.value.trim();
-    if (!msg) return;
-
-    // 1. Add User Message
-    addChatBubble(msg, 'user');
-    input.value = '';
-
-    // 2. Simulate Bot Thinking & Reply
-    setTimeout(() => {
-        let reply = "That's a great choice! Would you like to see more designs in that style?";
-        
-        if(msg.toLowerCase().includes('price') || msg.toLowerCase().includes('cost')) 
-            reply = "Our prices depend on current gold rates. Please download the photo and share it on WhatsApp for an instant quote!";
-        else if(msg.toLowerCase().includes('gold') || msg.toLowerCase().includes('purity'))
-            reply = "We specialize in 22ct and 24ct Hallmarked Gold. All designs you see here are 22ct.";
-        else if(msg.toLowerCase().includes('diamond'))
-            reply = "These are VVS clarity diamonds. Truly sparkling!";
-            
-        addChatBubble(reply, 'bot');
-    }, 1000); // 1 second delay
-}
-
-function addChatBubble(text, sender) {
-    const body = document.getElementById('chat-body-content');
-    const div = document.createElement('div');
-    div.className = `msg ${sender}`;
-    div.innerText = text;
-    body.appendChild(div);
-    body.scrollTop = body.scrollHeight; // Auto scroll to bottom
-}
-
-// Bind Enter key to chat
-document.addEventListener("DOMContentLoaded", () => {
-    const chatInput = document.getElementById('chat-input-field');
-    if(chatInput) {
-        chatInput.addEventListener("keypress", function(event) {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                sendChatMessage();
-            }
-        });
-    }
-});
 
 /* --- 3. GOOGLE DRIVE FETCHING --- */
 async function fetchFromDrive(category) {
@@ -264,7 +201,6 @@ async function shareSingleSnapshot() {
 }
 
 /* --- 5. PHYSICS & AI CORE --- */
-
 function calculateAngle(p1, p2) { return Math.atan2(p2.y - p1.y, p2.x - p1.x); }
 
 /* Hands: Ring & Bangle Logic */
@@ -361,20 +297,12 @@ faceMesh.onResults((results) => {
     const neck = { x: lm[152].x * w, y: lm[152].y * h };
     const nose = { x: lm[1].x * w, y: lm[1].y * h };
 
-    // --- ENHANCED PHYSICS (GRAVITY & SWING) ---
-    // 1. Calculate Head Angle
+    // Physics Simulation (Spring + Damping)
     const rawHeadTilt = Math.atan2(rightEar.y - leftEar.y, rightEar.x - leftEar.x);
-    
-    // 2. Target: Absolute vertical (Gravity)
-    // The earring wants to point DOWN (0 degrees in world space)
-    // Relative to the canvas rotation, that is -rawHeadTilt
     const gravityTarget = -rawHeadTilt; 
-    
-    // 3. Physics Simulation (Spring + Damping)
-    // Tuning: Stiff enough to pull down, loose enough to swing
-    const force = (gravityTarget - physics.earringAngle) * 0.08; // Stiffness
+    const force = (gravityTarget - physics.earringAngle) * 0.08; 
     physics.earringVelocity += force;
-    physics.earringVelocity *= 0.95; // Damping (0.99 = swings forever, 0.8 = stops fast)
+    physics.earringVelocity *= 0.95; 
     physics.earringAngle += physics.earringVelocity;
 
     const earDist = Math.hypot(rightEar.x - leftEar.x, rightEar.y - leftEar.y);
@@ -391,7 +319,7 @@ faceMesh.onResults((results) => {
       if (ratio > 0.2) { 
           canvasCtx.save();
           canvasCtx.translate(leftEar.x, leftEar.y);
-          canvasCtx.rotate(physics.earringAngle); // Apply Swing
+          canvasCtx.rotate(physics.earringAngle); 
           canvasCtx.drawImage(earringImg, -ew/2, 0, ew, eh);
           canvasCtx.restore();
       }
@@ -399,7 +327,7 @@ faceMesh.onResults((results) => {
       if (ratio < 0.8) {
           canvasCtx.save();
           canvasCtx.translate(rightEar.x, rightEar.y);
-          canvasCtx.rotate(physics.earringAngle); // Apply Swing
+          canvasCtx.rotate(physics.earringAngle); 
           canvasCtx.drawImage(earringImg, -ew/2, 0, ew, eh);
           canvasCtx.restore();
       }
@@ -452,7 +380,6 @@ function navigateJewelry(dir) {
   else if (currentType === 'bangles') bangleImg = nextItem;
 }
 
-/* UPDATED FUNCTION: Auto-selects first item and highlights button */
 async function selectJewelryType(type) {
   currentType = type;
   if(type !== 'earrings') earringImg = null;
@@ -462,7 +389,6 @@ async function selectJewelryType(type) {
 
   await preloadCategory(type); 
   
-  // --- NEW: Auto-select first item ---
   if (PRELOADED_IMAGES[type] && PRELOADED_IMAGES[type].length > 0) {
       const firstItem = PRELOADED_IMAGES[type][0];
       if (type === 'earrings') earringImg = firstItem;
@@ -470,7 +396,6 @@ async function selectJewelryType(type) {
       else if (type === 'rings') ringImg = firstItem;
       else if (type === 'bangles') bangleImg = firstItem;
   }
-  // -----------------------------------
 
   const container = document.getElementById('jewelry-options');
   container.innerHTML = ''; container.style.display = 'flex';
@@ -479,20 +404,16 @@ async function selectJewelryType(type) {
   JEWELRY_ASSETS[type].forEach((file, i) => {
     const btnImg = new Image(); btnImg.src = file.src; btnImg.crossOrigin = 'anonymous'; btnImg.className = "thumb-btn"; 
     
-    // --- NEW: Highlight first button initially ---
     if(i === 0) {
         btnImg.style.borderColor = "var(--accent)";
         btnImg.style.transform = "scale(1.05)";
     }
-    // ---------------------------------------------
 
     btnImg.onclick = () => {
-        // Reset all styles
         Array.from(container.children).forEach(c => {
             c.style.borderColor = "rgba(255,255,255,0.2)";
             c.style.transform = "scale(1)";
         });
-        // Highlight active
         btnImg.style.borderColor = "var(--accent)";
         btnImg.style.transform = "scale(1.05)";
 
@@ -508,7 +429,12 @@ async function selectJewelryType(type) {
 
 function toggleTryAll() {
     if (!currentType) { alert("Select category!"); return; }
-    if (autoTryRunning) stopAutoTry(); else startAutoTry();
+    if (autoTryRunning) {
+        stopAutoTry(); 
+    } else { 
+        triggerFlash(); // Trigger Flash on start
+        startAutoTry(); 
+    }
 }
 function startAutoTry() {
     autoTryRunning = true; autoSnapshots = []; autoTryIndex = 0;
@@ -553,7 +479,15 @@ function captureToGallery() {
   autoSnapshots.push({ url: dataUrl, name: `Look_${Date.now()}.png` });
   return { url: dataUrl, name: `Look_${Date.now()}.png` }; 
 }
-function takeSnapshot() { const shotData = captureToGallery(); currentPreviewData = shotData; document.getElementById('preview-image').src = shotData.url; document.getElementById('preview-modal').style.display = 'flex'; }
+
+function takeSnapshot() { 
+    triggerFlash(); // Trigger Flash here
+    const shotData = captureToGallery(); 
+    currentPreviewData = shotData; 
+    document.getElementById('preview-image').src = shotData.url; 
+    document.getElementById('preview-modal').style.display = 'flex'; 
+}
+
 function closePreview() { document.getElementById('preview-modal').style.display = 'none'; }
 function showGallery() {
   const grid = document.getElementById('gallery-grid'); grid.innerHTML = '';
@@ -573,4 +507,3 @@ window.closeGallery = closeGallery; window.closeLightbox = closeLightbox; window
 window.downloadAllAsZip = downloadAllAsZip; window.closePreview = closePreview;
 window.downloadSingleSnapshot = downloadSingleSnapshot; window.shareSingleSnapshot = shareSingleSnapshot;
 window.confirmWhatsAppDownload = confirmWhatsAppDownload; window.closeWhatsAppModal = closeWhatsAppModal;
-window.toggleChatbot = toggleChatbot; window.sendChatMessage = sendChatMessage;
