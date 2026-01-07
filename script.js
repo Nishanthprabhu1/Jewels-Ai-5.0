@@ -1,4 +1,4 @@
-/* script.js - Jewels-Ai Atelier: Flash on Every Try-All Step */
+/* script.js - Jewels-Ai Atelier: Flash + Dynamic Filename on Snapshot */
 
 /* --- CONFIGURATION --- */
 const API_KEY = "AIzaSyAXG3iG2oQjUA_BpnO8dK8y-MHJ7HLrhyE"; 
@@ -446,7 +446,6 @@ function stopAutoTry() {
     if (autoSnapshots.length > 0) showGallery();
 }
 
-/* UPDATED FUNCTION: Added Trigger Flash Inside Loop */
 async function runAutoStep() {
     if (!autoTryRunning) return;
     const assets = PRELOADED_IMAGES[currentType];
@@ -458,14 +457,14 @@ async function runAutoStep() {
     else if (currentType === 'bangles') bangleImg = targetImg;
     
     autoTryTimeout = setTimeout(() => { 
-        triggerFlash(); // <-- FLASH EFFECT HERE (Every Product)
+        triggerFlash(); 
         captureToGallery(); 
         autoTryIndex++; 
         runAutoStep(); 
     }, 1500); 
 }
 
-/* --- CAPTURE & GALLERY --- */
+/* --- CAPTURE & GALLERY (UPDATED: Uses File Name) --- */
 function captureToGallery() {
   const tempCanvas = document.createElement('canvas');
   tempCanvas.width = videoElement.videoWidth; tempCanvas.height = videoElement.videoHeight;
@@ -474,21 +473,48 @@ function captureToGallery() {
   tempCtx.setTransform(1, 0, 0, 1, 0, 0); 
   try { tempCtx.drawImage(canvasElement, 0, 0); } catch(e) {}
   
+  // --- NEW: LOGIC TO GET FILE NAME ---
+  let displayName = "Jewels-Ai Look"; // Fallback default
+
+  if (currentType && PRELOADED_IMAGES[currentType]) {
+      // 1. Identify active image object
+      let currentImgObj = null;
+      if (currentType === 'earrings') currentImgObj = earringImg;
+      else if (currentType === 'chains') currentImgObj = necklaceImg;
+      else if (currentType === 'rings') currentImgObj = ringImg;
+      else if (currentType === 'bangles') currentImgObj = bangleImg;
+
+      // 2. Find index and get name
+      if (currentImgObj) {
+          const idx = PRELOADED_IMAGES[currentType].indexOf(currentImgObj);
+          if (idx !== -1 && JEWELRY_ASSETS[currentType] && JEWELRY_ASSETS[currentType][idx]) {
+              displayName = JEWELRY_ASSETS[currentType][idx].name;
+              // Remove file extension for cleaner look (optional, but usually better)
+              displayName = displayName.replace(/\.[^/.]+$/, "");
+          }
+      }
+  }
+  // -----------------------------------
+  
   const padding = 20; 
   tempCtx.font = "bold 24px Montserrat, sans-serif"; tempCtx.textAlign = "left"; tempCtx.textBaseline = "bottom";
-  tempCtx.fillStyle = "white"; tempCtx.fillText("Jewels-Ai Look", padding, tempCanvas.height - padding);
+  tempCtx.fillStyle = "white"; 
+  tempCtx.fillText(displayName, padding, tempCanvas.height - padding); // <-- Using displayName here
+
   if (watermarkImg.complete) {
       const wWidth = tempCanvas.width * 0.25; const wHeight = (watermarkImg.height / watermarkImg.width) * wWidth;
       tempCtx.drawImage(watermarkImg, tempCanvas.width - wWidth - padding, tempCanvas.height - wHeight - padding, wWidth, wHeight);
   }
   
   const dataUrl = tempCanvas.toDataURL('image/png');
-  autoSnapshots.push({ url: dataUrl, name: `Look_${Date.now()}.png` });
-  return { url: dataUrl, name: `Look_${Date.now()}.png` }; 
+  // Use file name in saved file as well
+  const safeName = displayName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  autoSnapshots.push({ url: dataUrl, name: `${safeName}_${Date.now()}.png` });
+  return { url: dataUrl, name: `${safeName}_${Date.now()}.png` }; 
 }
 
 function takeSnapshot() { 
-    triggerFlash(); // Trigger Flash manually
+    triggerFlash(); 
     const shotData = captureToGallery(); 
     currentPreviewData = shotData; 
     document.getElementById('preview-image').src = shotData.url; 
