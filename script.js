@@ -1,8 +1,10 @@
-/* script.js - Jewels-Ai Atelier: Voice Toggle Button Enabled */
+/* script.js - Jewels-Ai Atelier: Connected to Live Backend */
 
 /* --- CONFIGURATION --- */
 const API_KEY = "AIzaSyAXG3iG2oQjUA_BpnO8dK8y-MHJ7HLrhyE"; 
-const UPLOAD_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby96W9Mf1fvsfdp7dpzRCEiQEvFEg3ZiSa-iEnYgbr4Zu2bC7IcQVMTxudp4QDofAg3/exec";
+
+// ✅ UPDATED: Your New Web App URL
+const UPLOAD_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzQ_NtdlyLxqsYib4V0qq-37O4RuBpAysHDqZDv7uPG7nlzgJDftc_frGDikDyRXqZF0A/exec";
 
 const DRIVE_FOLDERS = {
   earrings: "1ySHR6Id5RxVj16-lf7NMN9I61RPySY9s",
@@ -31,14 +33,10 @@ let lastGestureTime = 0;
 const GESTURE_COOLDOWN = 800; 
 let previousHandX = null;     
 
-/* Gallery State */
+/* Gallery & Voice State */
 let currentLightboxIndex = 0;
-
-/* Voice State (New) */
 let recognition = null;
-let voiceEnabled = true; // Default ON
-
-/* Physics State */
+let voiceEnabled = true;
 let physics = { earringVelocity: 0, earringAngle: 0 };
 
 /* Auto-Try & Gallery */
@@ -49,6 +47,22 @@ let autoTryTimeout = null;
 let currentPreviewData = { url: null, name: 'Jewels-Ai_look.png' }; 
 let pendingDownloadAction = null; 
 
+/* --- 📊 SALES ENGINE ANALYTICS ENGINE --- */
+const sessionStartTime = Date.now();
+const analytics = {
+    viewedItems: new Set(),
+    photosTaken: 0,
+    categoryCounts: { earrings: 0, chains: 0, rings: 0, bangles: 0 },
+    metalPreference: { gold: 0, silver: 0, rose: 0, diamond: 0 },
+    location: { city: "Unknown", region: "Unknown" }
+};
+
+// 1. Fetch Location immediately on load
+fetch('https://ipapi.co/json/')
+    .then(r => r.json())
+    .then(data => { analytics.location = { city: data.city, region: data.region_code }; })
+    .catch(e => console.log("Location access denied"));
+
 /* --- 1. FLASH EFFECT --- */
 function triggerFlash() {
     if(!flashOverlay) return;
@@ -58,38 +72,25 @@ function triggerFlash() {
     setTimeout(() => { flashOverlay.classList.remove('flash-active'); }, 300);
 }
 
-/* --- 2. VOICE RECOGNITION AI (UPDATED: With Toggle) --- */
+/* --- 2. VOICE RECOGNITION AI --- */
 function initVoiceControl() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
     if (SpeechRecognition) {
-        recognition = new SpeechRecognition(); // Assign to global variable
+        recognition = new SpeechRecognition(); 
         recognition.continuous = true; 
         recognition.interimResults = false;
         recognition.lang = 'en-US';
-
         recognition.onstart = () => { };
-
         recognition.onresult = (event) => {
             const command = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
             processVoiceCommand(command);
         };
-
-        // Smart Restart (Only if enabled)
         recognition.onend = () => {
-            if (voiceEnabled) {
-                setTimeout(() => {
-                    try { recognition.start(); } catch(e) { }
-                }, 1000); 
-            }
+            if (voiceEnabled) setTimeout(() => { try { recognition.start(); } catch(e) {} }, 1000); 
         };
-
         recognition.onerror = (event) => { console.warn("Voice Error:", event.error); };
-
-        try { recognition.start(); } catch(e) { console.log("Voice start error", e); }
+        try { recognition.start(); } catch(e) {}
     } else {
-        console.warn("Voice API not supported.");
-        // Hide button if not supported
         const btn = document.getElementById('voice-btn');
         if(btn) btn.style.display = 'none';
     }
@@ -98,19 +99,12 @@ function initVoiceControl() {
 function toggleVoiceControl() {
     const btn = document.getElementById('voice-btn');
     if(!recognition) return;
-
     if (voiceEnabled) {
-        // Turn OFF
-        voiceEnabled = false;
-        recognition.stop();
-        btn.innerHTML = '🔇';
-        btn.classList.add('voice-off');
+        voiceEnabled = false; recognition.stop();
+        btn.innerHTML = '🔇'; btn.classList.add('voice-off');
     } else {
-        // Turn ON
-        voiceEnabled = true;
-        try { recognition.start(); } catch(e) {}
-        btn.innerHTML = '🎙️';
-        btn.classList.remove('voice-off');
+        voiceEnabled = true; try { recognition.start(); } catch(e) {}
+        btn.innerHTML = '🎙️'; btn.classList.remove('voice-off');
     }
 }
 
@@ -163,19 +157,43 @@ async function preloadCategory(type) {
     }
 }
 
-/* --- 4. WHATSAPP AUTOMATION --- */
-function requestWhatsApp(actionType) {
-    pendingDownloadAction = actionType; document.getElementById('whatsapp-modal').style.display = 'flex';
+/* --- 4. DATA COLLECTION & UPLOAD LOGIC --- */
+function trackItemView(item, type) {
+    if(!item || !item.src) return;
+    
+    // 1. Track Unique Views
+    analytics.viewedItems.add(item.src);
+    
+    // 2. Track Category Interest
+    if(analytics.categoryCounts[type] !== undefined) analytics.categoryCounts[type]++;
+    
+    // 3. Track Style/Metal Preference (Simple Keyword Check)
+    const name = item.src.toLowerCase(); 
+    if(name.includes('gold')) analytics.metalPreference.gold++;
+    if(name.includes('silver') || name.includes('white')) analytics.metalPreference.silver++;
+    if(name.includes('rose')) analytics.metalPreference.rose++;
+    if(name.includes('diamond') || name.includes('stone')) analytics.metalPreference.diamond++;
 }
-function closeWhatsAppModal() { document.getElementById('whatsapp-modal').style.display = 'none'; pendingDownloadAction = null; }
+
+function getStylePersona() {
+    // Basic AI Tagging Logic
+    const p = analytics.metalPreference;
+    if (p.diamond > p.gold) return "Luxury/Modern";
+    if (p.gold > p.diamond) return "Traditional/Ethnic";
+    return "Mixed/Casual";
+}
+
 function confirmWhatsAppDownload() {
     const phoneInput = document.getElementById('user-phone');
     const phone = phoneInput.value.trim();
     if (phone.length < 5) { alert("Invalid Number"); return; }
     document.getElementById('whatsapp-modal').style.display = 'none';
+    
     const overlay = document.getElementById('process-overlay');
     overlay.style.display = 'flex'; document.getElementById('process-text').innerText = "Sending to WhatsApp...";
-    uploadToDrive(phone);
+    
+    uploadToDrive(phone); 
+    
     setTimeout(() => {
         const msg = encodeURIComponent("Hi! Here is my Jewels-Ai virtual try-on look. Thanks!");
         window.open(`https://wa.me/${phone.replace('+','')}?text=${msg}`, '_blank');
@@ -184,14 +202,48 @@ function confirmWhatsAppDownload() {
         setTimeout(() => { overlay.style.display = 'none'; }, 2500);
     }, 1500);
 }
+
 function uploadToDrive(phone) {
     const data = pendingDownloadAction === 'single' ? currentPreviewData : (autoSnapshots[0] || {}); 
     if(!data.url) return;
+
+    // --- CONSTRUCT CUSTOMER 360 PROFILE ---
+    const sessionDuration = Math.floor((Date.now() - sessionStartTime) / 1000); 
+    const topCategory = Object.keys(analytics.categoryCounts).reduce((a, b) => analytics.categoryCounts[a] > analytics.categoryCounts[b] ? a : b);
+    
+    const customer360 = {
+        // A. Profile
+        location: analytics.location,
+        device: navigator.platform + " | " + navigator.userAgent.split(')')[0].split('(')[1], 
+        referrer: document.referrer || "Direct",
+        
+        // B. Engagement
+        duration_sec: sessionDuration,
+        items_viewed: analytics.viewedItems.size,
+        photos_taken: analytics.photosTaken,
+        
+        // C. Taste
+        top_category: topCategory,
+        style_persona: getStylePersona(),
+        
+        // D. Sales Signals (Lead Score Logic)
+        lead_score: (analytics.photosTaken * 10) + (sessionDuration > 300 ? 20 : 0) + (analytics.viewedItems.size * 2),
+        timestamp: new Date().toLocaleString()
+    };
+
     fetch(UPLOAD_SCRIPT_URL, {
         method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: phone, image: data.url, filename: data.name })
+        body: JSON.stringify({ 
+            phone: phone, 
+            image: data.url, 
+            filename: data.name,
+            analytics: JSON.stringify(customer360) 
+        })
     }).catch(err => console.error("Upload failed", err));
 }
+
+function requestWhatsApp(actionType) { pendingDownloadAction = actionType; document.getElementById('whatsapp-modal').style.display = 'flex'; }
+function closeWhatsAppModal() { document.getElementById('whatsapp-modal').style.display = 'none'; pendingDownloadAction = null; }
 
 /* --- DOWNLOAD & SHARE --- */
 function downloadSingleSnapshot() { if(currentPreviewData.url) requestWhatsApp('single'); }
@@ -315,10 +367,7 @@ function navigateJewelry(dir) {
   let idx = list.indexOf(currentImg); if (idx === -1) idx = 0; 
   let nextIdx = (idx + dir + list.length) % list.length;
   const nextItem = list[nextIdx];
-  if (currentType === 'earrings') earringImg = nextItem;
-  else if (currentType === 'chains') necklaceImg = nextItem;
-  else if (currentType === 'rings') ringImg = nextItem;
-  else if (currentType === 'bangles') bangleImg = nextItem;
+  updateSelection(nextItem);
 }
 
 async function selectJewelryType(type) {
@@ -328,10 +377,9 @@ async function selectJewelryType(type) {
 
   await preloadCategory(type); 
   if (PRELOADED_IMAGES[type] && PRELOADED_IMAGES[type].length > 0) {
-      const firstItem = PRELOADED_IMAGES[type][0];
-      if (type === 'earrings') earringImg = firstItem; else if (type === 'chains') necklaceImg = firstItem;
-      else if (type === 'rings') ringImg = firstItem; else if (type === 'bangles') bangleImg = firstItem;
+      updateSelection(PRELOADED_IMAGES[type][0]);
   }
+  
   const container = document.getElementById('jewelry-options'); container.innerHTML = ''; container.style.display = 'flex';
   if (!JEWELRY_ASSETS[type]) return;
 
@@ -341,12 +389,21 @@ async function selectJewelryType(type) {
     btnImg.onclick = () => {
         Array.from(container.children).forEach(c => { c.style.borderColor = "rgba(255,255,255,0.2)"; c.style.transform = "scale(1)"; });
         btnImg.style.borderColor = "var(--accent)"; btnImg.style.transform = "scale(1.05)";
-        const fullImg = PRELOADED_IMAGES[type][i];
-        if (type === 'earrings') earringImg = fullImg; else if (type === 'chains') necklaceImg = fullImg;
-        else if (type === 'rings') ringImg = fullImg; else if (type === 'bangles') bangleImg = fullImg;
+        updateSelection(PRELOADED_IMAGES[type][i]);
     };
     container.appendChild(btnImg);
   });
+}
+
+// Helper to update state and track analytics
+function updateSelection(img) {
+    if (currentType === 'earrings') earringImg = img;
+    else if (currentType === 'chains') necklaceImg = img;
+    else if (currentType === 'rings') ringImg = img;
+    else if (currentType === 'bangles') bangleImg = img;
+    
+    // TRACKING HOOK
+    if(img && img.src) trackItemView(img, currentType);
 }
 
 function toggleTryAll() {
@@ -369,8 +426,8 @@ async function runAutoStep() {
     const assets = PRELOADED_IMAGES[currentType];
     if (!assets || autoTryIndex >= assets.length) { stopAutoTry(); return; }
     const targetImg = assets[autoTryIndex];
-    if (currentType === 'earrings') earringImg = targetImg; else if (currentType === 'chains') necklaceImg = targetImg;
-    else if (currentType === 'rings') ringImg = targetImg; else if (currentType === 'bangles') bangleImg = targetImg;
+    updateSelection(targetImg);
+    
     autoTryTimeout = setTimeout(() => { triggerFlash(); captureToGallery(); autoTryIndex++; runAutoStep(); }, 1500); 
 }
 
@@ -405,6 +462,9 @@ function captureToGallery() {
   
   const dataUrl = tempCanvas.toDataURL('image/png');
   const safeName = displayName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  
+  analytics.photosTaken++; // Track snapshot count
+  
   autoSnapshots.push({ url: dataUrl, name: `${safeName}_${Date.now()}.png` });
   return { url: dataUrl, name: `${safeName}_${Date.now()}.png` }; 
 }
@@ -438,7 +498,6 @@ function showGallery() {
         
         overlay.innerHTML = `<span class="overlay-text">${cleanName}</span><div class="overlay-icon">🔍</div>`;
 
-        // Update click to set index
         card.onclick = () => { 
             currentLightboxIndex = index;
             document.getElementById('lightbox-image').src = item.url; 
