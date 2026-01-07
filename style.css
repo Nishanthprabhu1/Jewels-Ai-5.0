@@ -1,4 +1,4 @@
-/* style.css - Jewels-Ai Atelier: Flash Effect Added */
+/* style.css - Jewels-Ai Atelier: Premium Tech Interface */
 
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@400;600&display=swap');
 
@@ -22,28 +22,7 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* --- 1. FLASH EFFECT (NEW) --- */
-#flash-overlay {
-    position: fixed;
-    inset: 0;
-    background: white;
-    z-index: 9999;
-    opacity: 0;
-    pointer-events: none;
-    display: none;
-}
-
-.flash-active {
-    display: block !important;
-    animation: flash-animation 0.25s ease-out forwards;
-}
-
-@keyframes flash-animation {
-    0% { opacity: 0.8; }
-    100% { opacity: 0; }
-}
-
-/* --- 2. VIDEO & AR LAYERS --- */
+/* --- 1. VIDEO & AR LAYERS --- */
 #video-container { 
   position: fixed; 
   inset: 0; 
@@ -68,7 +47,7 @@ body {
   pointer-events: none; /* Let clicks pass through to video/ui */
 }
 
-/* --- 3. LOADING STATUS --- */
+/* --- 2. LOADING STATUS --- */
 #loading-status {
     position: fixed;
     top: 50%; left: 50%;
@@ -82,6 +61,32 @@ body {
     font-size: 18px;
     z-index: 500;
     backdrop-filter: blur(5px);
+}
+
+/* --- 3. VOICE AI INDICATOR --- */
+#voice-indicator {
+    position: fixed; 
+    top: 90px; 
+    left: 20px; 
+    z-index: 20;
+    display: none; /* Hidden by default until active */
+    align-items: center; 
+    gap: 10px;
+    background: rgba(0,0,0,0.6); 
+    padding: 8px 16px; 
+    border-radius: 20px;
+    border: 1px solid var(--accent);
+    backdrop-filter: blur(4px);
+}
+
+.mic-icon { 
+    font-size: 18px;
+    animation: pulse 1.5s infinite; 
+}
+
+#voice-status-text {
+    font-size: 12px;
+    color: #eee;
 }
 
 /* --- 4. HEADER & CONTROLS --- */
@@ -185,7 +190,65 @@ body {
 }
 .thumb-btn:active { transform: scale(0.95); border-color: var(--accent); }
 
-/* --- 6. MODALS --- */
+/* --- 6. CHATBOT WIDGET --- */
+#chatbot-btn {
+    position: fixed; 
+    bottom: 100px; 
+    right: 20px; 
+    z-index: 100;
+    background: var(--accent); 
+    color: black; 
+    padding: 12px 20px;
+    border-radius: 30px; 
+    font-weight: bold; 
+    cursor: pointer;
+    box-shadow: 0 4px 15px var(--accent-glow);
+    font-size: 14px;
+    animation: pulse 3s infinite;
+}
+
+#chatbot-box {
+    position: fixed; 
+    bottom: 150px; 
+    right: 20px; 
+    width: 300px; 
+    height: 400px;
+    background: #111; 
+    border: 1px solid var(--accent); 
+    border-radius: 15px;
+    z-index: 101; 
+    display: none; 
+    flex-direction: column; 
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+}
+
+.chat-header { 
+    background: var(--accent); 
+    color: black; 
+    padding: 15px; 
+    font-weight: bold;
+    font-family: 'Playfair Display'; 
+}
+
+.chat-body { 
+    flex: 1; 
+    padding: 15px; 
+    overflow-y: auto; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 10px; 
+}
+
+.msg { padding: 8px 12px; border-radius: 10px; font-size: 13px; max-width: 85%; line-height: 1.4; }
+.msg.bot { background: #333; color: white; align-self: flex-start; border-bottom-left-radius: 2px; }
+.msg.user { background: var(--accent); color: black; align-self: flex-end; border-bottom-right-radius: 2px; }
+
+.chat-input { display: flex; padding: 10px; border-top: 1px solid #333; background: #000; }
+.chat-input input { flex: 1; background: #222; border: none; padding: 10px; color: white; border-radius: 5px; outline: none; }
+.chat-input button { background: none; border: none; color: var(--accent); font-size: 20px; cursor: pointer; margin-left: 8px; }
+
+/* --- 7. MODALS (Preview, Gallery, Lightbox) --- */
 #preview-modal, #gallery-modal, #lightbox-overlay {
     position: fixed;
     inset: 0;
@@ -221,6 +284,7 @@ body {
     gap: 15px;
 }
 
+/* Gallery Specifics */
 .gallery-content {
     background: #111;
     width: 90%;
@@ -262,7 +326,7 @@ body {
     z-index: 2001;
 }
 
-/* --- 7. WHATSAPP MODAL --- */
+/* --- 8. WHATSAPP MODAL --- */
 .modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 6000;
     display: none; align-items: center; justify-content: center;
@@ -297,7 +361,7 @@ body {
     background: none; border: none; color: #888; margin-top: 15px; cursor: pointer; text-decoration: underline;
 }
 
-/* --- 8. PROCESSING SPINNER --- */
+/* --- 9. PROCESSING SPINNER --- */
 #process-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 4000;
     display: none; align-items: center; justify-content: center;
@@ -313,4 +377,10 @@ body {
     animation: spin 1s linear infinite;
 }
 
+/* --- 10. ANIMATIONS --- */
 @keyframes spin { 100% { transform: rotate(360deg); } }
+@keyframes pulse { 
+    0% { opacity: 0.6; transform: scale(1); } 
+    50% { opacity: 1; transform: scale(1.05); } 
+    100% { opacity: 0.6; transform: scale(1); } 
+}
