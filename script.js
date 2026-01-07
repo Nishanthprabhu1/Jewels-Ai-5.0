@@ -1,9 +1,7 @@
-/* script.js - Jewels-Ai Atelier: Connected to Live Backend */
+/* script.js - Jewels-Ai Atelier: Streamlined Analytics */
 
 /* --- CONFIGURATION --- */
 const API_KEY = "AIzaSyAXG3iG2oQjUA_BpnO8dK8y-MHJ7HLrhyE"; 
-
-// ✅ UPDATED: Your New Web App URL
 const UPLOAD_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzQ_NtdlyLxqsYib4V0qq-37O4RuBpAysHDqZDv7uPG7nlzgJDftc_frGDikDyRXqZF0A/exec";
 
 const DRIVE_FOLDERS = {
@@ -47,21 +45,13 @@ let autoTryTimeout = null;
 let currentPreviewData = { url: null, name: 'Jewels-Ai_look.png' }; 
 let pendingDownloadAction = null; 
 
-/* --- 📊 SALES ENGINE ANALYTICS ENGINE --- */
+/* --- 📊 ANALYTICS ENGINE (SIMPLIFIED) --- */
 const sessionStartTime = Date.now();
 const analytics = {
     viewedItems: new Set(),
     photosTaken: 0,
-    categoryCounts: { earrings: 0, chains: 0, rings: 0, bangles: 0 },
-    metalPreference: { gold: 0, silver: 0, rose: 0, diamond: 0 },
-    location: { city: "Unknown", region: "Unknown" }
+    categoryCounts: { earrings: 0, chains: 0, rings: 0, bangles: 0 }
 };
-
-// 1. Fetch Location immediately on load
-fetch('https://ipapi.co/json/')
-    .then(r => r.json())
-    .then(data => { analytics.location = { city: data.city, region: data.region_code }; })
-    .catch(e => console.log("Location access denied"));
 
 /* --- 1. FLASH EFFECT --- */
 function triggerFlash() {
@@ -113,7 +103,7 @@ function processVoiceCommand(cmd) {
     else if (cmd.includes('back') || cmd.includes('previous')) navigateJewelry(-1);
     else if (cmd.includes('photo') || cmd.includes('capture')) takeSnapshot();
     else if (cmd.includes('earring')) selectJewelryType('earrings');
-    else if (cmd.includes('chain')) selectJewelryType('chains');
+    else if (cmd.includes('chain') || selectJewelryType('chains'));
     else if (cmd.includes('ring')) selectJewelryType('rings');
     else if (cmd.includes('bangle')) selectJewelryType('bangles');
 }
@@ -160,27 +150,8 @@ async function preloadCategory(type) {
 /* --- 4. DATA COLLECTION & UPLOAD LOGIC --- */
 function trackItemView(item, type) {
     if(!item || !item.src) return;
-    
-    // 1. Track Unique Views
     analytics.viewedItems.add(item.src);
-    
-    // 2. Track Category Interest
     if(analytics.categoryCounts[type] !== undefined) analytics.categoryCounts[type]++;
-    
-    // 3. Track Style/Metal Preference (Simple Keyword Check)
-    const name = item.src.toLowerCase(); 
-    if(name.includes('gold')) analytics.metalPreference.gold++;
-    if(name.includes('silver') || name.includes('white')) analytics.metalPreference.silver++;
-    if(name.includes('rose')) analytics.metalPreference.rose++;
-    if(name.includes('diamond') || name.includes('stone')) analytics.metalPreference.diamond++;
-}
-
-function getStylePersona() {
-    // Basic AI Tagging Logic
-    const p = analytics.metalPreference;
-    if (p.diamond > p.gold) return "Luxury/Modern";
-    if (p.gold > p.diamond) return "Traditional/Ethnic";
-    return "Mixed/Casual";
 }
 
 function confirmWhatsAppDownload() {
@@ -207,27 +178,20 @@ function uploadToDrive(phone) {
     const data = pendingDownloadAction === 'single' ? currentPreviewData : (autoSnapshots[0] || {}); 
     if(!data.url) return;
 
-    // --- CONSTRUCT CUSTOMER 360 PROFILE ---
     const sessionDuration = Math.floor((Date.now() - sessionStartTime) / 1000); 
-    const topCategory = Object.keys(analytics.categoryCounts).reduce((a, b) => analytics.categoryCounts[a] > analytics.categoryCounts[b] ? a : b);
+    let topCategory = "None";
+    try {
+        topCategory = Object.keys(analytics.categoryCounts).reduce((a, b) => analytics.categoryCounts[a] > analytics.categoryCounts[b] ? a : b);
+    } catch(e) {}
     
+    // Removed: Location, Lead Score, Style Persona
     const customer360 = {
-        // A. Profile
-        location: analytics.location,
         device: navigator.platform + " | " + navigator.userAgent.split(')')[0].split('(')[1], 
         referrer: document.referrer || "Direct",
-        
-        // B. Engagement
         duration_sec: sessionDuration,
         items_viewed: analytics.viewedItems.size,
         photos_taken: analytics.photosTaken,
-        
-        // C. Taste
         top_category: topCategory,
-        style_persona: getStylePersona(),
-        
-        // D. Sales Signals (Lead Score Logic)
-        lead_score: (analytics.photosTaken * 10) + (sessionDuration > 300 ? 20 : 0) + (analytics.viewedItems.size * 2),
         timestamp: new Date().toLocaleString()
     };
 
