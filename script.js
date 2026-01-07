@@ -1,4 +1,4 @@
-/* script.js - Jewels-Ai Atelier: Flash, Names & Premium Gallery Navigation */
+/* script.js - Jewels-Ai Atelier: Smoother Voice (Reduced Beeps) */
 
 /* --- CONFIGURATION --- */
 const API_KEY = "AIzaSyAXG3iG2oQjUA_BpnO8dK8y-MHJ7HLrhyE"; 
@@ -54,28 +54,45 @@ function triggerFlash() {
     setTimeout(() => { flashOverlay.classList.remove('flash-active'); }, 300);
 }
 
-/* --- 2. VOICE RECOGNITION AI --- */
+/* --- 2. VOICE RECOGNITION AI (UPDATED) --- */
 function initVoiceControl() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
-        recognition.continuous = true; recognition.interimResults = false; recognition.lang = 'en-US';
+        recognition.continuous = true; 
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+
         recognition.onstart = () => { };
+
         recognition.onresult = (event) => {
             const command = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
             processVoiceCommand(command);
         };
-        recognition.onend = () => { try { recognition.start(); } catch(e) {} };
+
+        // UPDATED: Added 1-second delay to prevent rapid beep loops
+        recognition.onend = () => {
+            // console.log("Voice ended. Waiting to restart...");
+            setTimeout(() => {
+                try { recognition.start(); } catch(e) { /* Already started */ }
+            }, 1000); 
+        };
+
         recognition.onerror = (event) => { console.warn("Voice Error:", event.error); };
-        try { recognition.start(); } catch(e) {}
+
+        try { recognition.start(); } catch(e) { console.log("Voice start error", e); }
+    } else {
+        console.warn("Voice API not supported.");
     }
 }
+
 function processVoiceCommand(cmd) {
     if (cmd.includes('next') || cmd.includes('change')) navigateJewelry(1);
     else if (cmd.includes('back') || cmd.includes('previous')) navigateJewelry(-1);
     else if (cmd.includes('photo') || cmd.includes('capture')) takeSnapshot();
     else if (cmd.includes('earring')) selectJewelryType('earrings');
-    else if (cmd.includes('chain') || selectJewelryType('chains'));
+    else if (cmd.includes('chain')) selectJewelryType('chains');
     else if (cmd.includes('ring')) selectJewelryType('rings');
     else if (cmd.includes('bangle')) selectJewelryType('bangles');
 }
