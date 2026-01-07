@@ -1,7 +1,8 @@
-/* script.js - Jewels-Ai Atelier: Streamlined Analytics */
+/* script.js - Jewels-Ai Atelier: No Device Data */
 
 /* --- CONFIGURATION --- */
 const API_KEY = "AIzaSyAXG3iG2oQjUA_BpnO8dK8y-MHJ7HLrhyE"; 
+// Your existing URL is preserved here:
 const UPLOAD_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzQ_NtdlyLxqsYib4V0qq-37O4RuBpAysHDqZDv7uPG7nlzgJDftc_frGDikDyRXqZF0A/exec";
 
 const DRIVE_FOLDERS = {
@@ -45,7 +46,7 @@ let autoTryTimeout = null;
 let currentPreviewData = { url: null, name: 'Jewels-Ai_look.png' }; 
 let pendingDownloadAction = null; 
 
-/* --- 📊 ANALYTICS ENGINE (SIMPLIFIED) --- */
+/* --- 📊 ANALYTICS ENGINE (No Device) --- */
 const sessionStartTime = Date.now();
 const analytics = {
     viewedItems: new Set(),
@@ -103,7 +104,7 @@ function processVoiceCommand(cmd) {
     else if (cmd.includes('back') || cmd.includes('previous')) navigateJewelry(-1);
     else if (cmd.includes('photo') || cmd.includes('capture')) takeSnapshot();
     else if (cmd.includes('earring')) selectJewelryType('earrings');
-    else if (cmd.includes('chain') || selectJewelryType('chains'));
+    else if (cmd.includes('chain')) selectJewelryType('chains');
     else if (cmd.includes('ring')) selectJewelryType('rings');
     else if (cmd.includes('bangle')) selectJewelryType('bangles');
 }
@@ -184,9 +185,8 @@ function uploadToDrive(phone) {
         topCategory = Object.keys(analytics.categoryCounts).reduce((a, b) => analytics.categoryCounts[a] > analytics.categoryCounts[b] ? a : b);
     } catch(e) {}
     
-    // Removed: Location, Lead Score, Style Persona
+    // Removed: Device Info
     const customer360 = {
-        device: navigator.platform + " | " + navigator.userAgent.split(')')[0].split('(')[1], 
         referrer: document.referrer || "Direct",
         duration_sec: sessionDuration,
         items_viewed: analytics.viewedItems.size,
