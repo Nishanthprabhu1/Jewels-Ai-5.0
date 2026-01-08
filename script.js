@@ -1,4 +1,4 @@
-/* script.js - Jewels-Ai Atelier: Auto Camera Switch (Front/Back) */
+/* script.js - Jewels-Ai Atelier: Fixed Hand Tracking Direction */
 
 /* --- CONFIGURATION --- */
 const API_KEY = "AIzaSyAXG3iG2oQjUA_BpnO8dK8y-MHJ7HLrhyE"; 
@@ -31,7 +31,7 @@ let lastGestureTime = 0;
 const GESTURE_COOLDOWN = 800; 
 let previousHandX = null;     
 
-/* Camera State (New) */
+/* Camera State */
 let currentFacingMode = 'user'; // Default to Front Camera
 
 /* Gallery & Voice State */
@@ -150,14 +150,13 @@ async function preloadCategory(type) {
     }
 }
 
-/* --- 4. CAMERA SWITCHING LOGIC (NEW) --- */
+/* --- 4. CAMERA SWITCHING LOGIC --- */
 async function switchCamera(targetMode) {
-    if (currentFacingMode === targetMode) return; // Already on correct camera
+    if (currentFacingMode === targetMode) return; 
 
     loadingStatus.style.display = 'block';
     loadingStatus.textContent = targetMode === 'user' ? "Switching to Front Camera..." : "Switching to Back Camera...";
     
-    // Stop current tracks
     if (videoElement.srcObject) {
         videoElement.srcObject.getTracks().forEach(track => track.stop());
     }
@@ -165,7 +164,6 @@ async function switchCamera(targetMode) {
     try {
         currentFacingMode = targetMode;
         
-        // Adjust Mirroring: Front = Mirrored, Back = Normal
         if (targetMode === 'environment') {
             videoElement.classList.add('no-mirror');
         } else {
@@ -181,8 +179,6 @@ async function switchCamera(targetMode) {
         });
         
         videoElement.srcObject = stream;
-        
-        // Wait for video to be ready again
         videoElement.onloadeddata = () => { 
             videoElement.play(); 
             loadingStatus.style.display = 'none';
@@ -201,11 +197,10 @@ async function selectJewelryType(type) {
   if(type !== 'earrings') earringImg = null; if(type !== 'chains') necklaceImg = null;
   if(type !== 'rings') ringImg = null; if(type !== 'bangles') bangleImg = null;
 
-  // --- AUTOMATIC CAMERA SWITCH ---
   if (type === 'rings' || type === 'bangles') {
-      await switchCamera('environment'); // Back Camera for Hands
+      await switchCamera('environment'); 
   } else {
-      await switchCamera('user'); // Front Camera for Face
+      await switchCamera('user'); 
   }
 
   await preloadCategory(type); 
@@ -282,15 +277,11 @@ function captureToGallery() {
   const tempCanvas = document.createElement('canvas'); tempCanvas.width = videoElement.videoWidth; tempCanvas.height = videoElement.videoHeight;
   const tempCtx = tempCanvas.getContext('2d');
   
-  // HANDLE MIRRORING IN SNAPSHOT
-  // If we are using back camera (no-mirror), don't scale(-1)
   if (currentFacingMode === 'user') {
       tempCtx.translate(tempCanvas.width, 0); tempCtx.scale(-1, 1); 
   }
   
   tempCtx.drawImage(videoElement, 0, 0);
-  
-  // Reset transform for overlay
   tempCtx.setTransform(1, 0, 0, 1, 0, 0); 
   try { tempCtx.drawImage(canvasElement, 0, 0); } catch(e) {}
   
@@ -417,7 +408,16 @@ hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0
 hands.onResults((results) => {
   isProcessingHand = false; 
   const w = canvasElement.width; const h = canvasElement.height;
-  canvasCtx.save(); canvasCtx.translate(w, 0); canvasCtx.scale(-1, 1);
+  
+  canvasCtx.save();
+  
+  // ✅ FIX: Only Mirror if in Selfie Mode
+  if (currentFacingMode === 'user') {
+      canvasCtx.translate(w, 0); canvasCtx.scale(-1, 1);
+  } else {
+      // Back camera (Hand mode) -> No mirroring
+      canvasCtx.setTransform(1, 0, 0, 1, 0, 0); 
+  }
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
       const lm = results.multiHandLandmarks[0];
@@ -458,18 +458,13 @@ faceMesh.onResults((results) => {
   canvasElement.width = videoElement.videoWidth; canvasElement.height = videoElement.videoHeight;
   canvasCtx.save(); canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
   
-  // NOTE: If using back camera, we DO NOT mirror the overlay logic, but FaceMesh coordinates 
-  // are already relative to the video feed. The canvas transform (-1, 1) currently flips it.
-  
   canvasCtx.globalCompositeOperation = 'overlay';
   canvasCtx.fillStyle = 'rgba(255, 220, 180, 0.15)'; canvasCtx.fillRect(0,0, canvasElement.width, canvasElement.height);
   canvasCtx.globalCompositeOperation = 'source-over'; 
   
-  // DYNAMIC MIRRORING FOR AR OVERLAY
   if (currentFacingMode === 'user') {
       canvasCtx.translate(canvasElement.width, 0); canvasCtx.scale(-1, 1);
   } else {
-      // No flip for back camera
       canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
