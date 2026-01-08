@@ -1,8 +1,7 @@
-/* script.js - Jewels-Ai Atelier: Multi-Photo Upload Fix */
+/* script.js - Jewels-Ai Atelier: Smart Camera Switch (Front/Back) */
 
 /* --- CONFIGURATION --- */
 const API_KEY = "AIzaSyAXG3iG2oQjUA_BpnO8dK8y-MHJ7HLrhyE"; 
-// Your existing Backend URL
 const UPLOAD_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzQ_NtdlyLxqsYib4V0qq-37O4RuBpAysHDqZDv7uPG7nlzgJDftc_frGDikDyRXqZF0A/exec";
 
 const DRIVE_FOLDERS = {
@@ -31,6 +30,9 @@ let isProcessingHand = false, isProcessingFace = false;
 let lastGestureTime = 0;
 const GESTURE_COOLDOWN = 800; 
 let previousHandX = null;     
+
+/* Camera State (New) */
+let currentFacingMode = 'user'; // Default to front camera
 
 /* Gallery & Voice State */
 let currentLightboxIndex = 0;
@@ -175,12 +177,10 @@ function confirmWhatsAppDownload() {
     }, 1500);
 }
 
-// ✅ UPDATED: Loop through ALL images for Try All
 function uploadToDrive(phone) {
     if (pendingDownloadAction === 'single') {
         if(currentPreviewData.url) sendDataToBackend(phone, currentPreviewData);
     } else {
-        // It is 'zip' (Try All) -> Send ALL snapshots
         if (autoSnapshots.length > 0) {
             autoSnapshots.forEach(imgData => {
                 sendDataToBackend(phone, imgData);
@@ -189,7 +189,6 @@ function uploadToDrive(phone) {
     }
 }
 
-// ✅ NEW HELPER FUNCTION to handle the fetch
 function sendDataToBackend(phone, imgData) {
     const sessionDuration = Math.floor((Date.now() - sessionStartTime) / 1000); 
     let topCategory = "None";
@@ -210,8 +209,8 @@ function sendDataToBackend(phone, imgData) {
         method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
             phone: phone, 
-            image: imgData.url,     // Send the specific image from the loop
-            filename: imgData.name, // Send the specific filename
+            image: imgData.url,     
+            filename: imgData.name, 
             analytics: JSON.stringify(customer360) 
         })
     }).catch(err => console.error("Upload failed", err));
@@ -317,14 +316,34 @@ faceMesh.onResults((results) => {
   canvasCtx.restore();
 });
 
-/* --- INIT CAMERA --- */
-async function startCameraFast() {
+/* --- INIT CAMERA (With Switching) --- */
+async function switchCamera(mode) {
+    if (currentFacingMode === mode) return; 
+    currentFacingMode = mode;
+    loadingStatus.style.display = 'block'; loadingStatus.textContent = "Switching Camera...";
+    
+    if (videoElement.srcObject) {
+        videoElement.srcObject.getTracks().forEach(track => track.stop());
+    }
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" } });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: mode } 
+        });
         videoElement.srcObject = stream;
-        videoElement.onloadeddata = () => { videoElement.play(); loadingStatus.textContent = "Loading AI Models..."; detectLoop(); initVoiceControl(); };
-    } catch (err) { alert("Camera Error: Check Permissions"); }
+        videoElement.onloadeddata = () => { videoElement.play(); loadingStatus.textContent = "AI Ready"; setTimeout(() => loadingStatus.style.display = 'none', 500); };
+    } catch(err) {
+        console.error("Camera Switch Error", err);
+        alert("Camera switch failed. Please restart app.");
+        loadingStatus.style.display = 'none';
+    }
 }
+
+async function startCameraFast() {
+    await switchCamera('user'); // Initial camera
+    detectLoop(); 
+    initVoiceControl();
+}
+
 async function detectLoop() {
     if (videoElement.readyState >= 2) {
         if (!isProcessingFace) { isProcessingFace = true; await faceMesh.send({image: videoElement}); }
@@ -346,6 +365,13 @@ function navigateJewelry(dir) {
 }
 
 async function selectJewelryType(type) {
+  // CAMERA SWITCHING LOGIC
+  if (type === 'rings' || type === 'bangles') {
+      await switchCamera('environment'); // Rear camera for Hands
+  } else {
+      await switchCamera('user'); // Front camera for Face
+  }
+
   currentType = type;
   if(type !== 'earrings') earringImg = null; if(type !== 'chains') necklaceImg = null;
   if(type !== 'rings') ringImg = null; if(type !== 'bangles') bangleImg = null;
