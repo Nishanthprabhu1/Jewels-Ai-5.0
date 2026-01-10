@@ -10,6 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
@@ -67,11 +68,7 @@
       <div class="gallery-content">
         <span class="close-gallery" onclick="closeGallery()">&times;</span>
         <h2 style="color:#d4af37; font-family:'Playfair Display';">Your Collection</h2>
-        
-        <div id="gallery-grid">
-            <p id="empty-gallery-msg" style="color:#ccc; width:100%;">No photos yet. Take a snapshot!</p>
-        </div>
-        
+        <div id="gallery-grid"></div>
         <div style="margin-top:20px;">
           <button class="pill accent" onclick="downloadAllAsZip()">Download ZIP</button>
         </div>
@@ -80,10 +77,6 @@
 
     <div id="lightbox-overlay">
         <span class="close-lightbox" onclick="closeLightbox()">&times;</span>
-        
-        <div class="lightbox-nav prev" onclick="changeLightboxImage(-1)">&#10094;</div>
-        <div class="lightbox-nav next" onclick="changeLightboxImage(1)">&#10095;</div>
-
         <div class="lightbox-main">
             <img id="lightbox-image" src="" alt="Zoomed View">
         </div>
