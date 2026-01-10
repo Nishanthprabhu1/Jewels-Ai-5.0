@@ -17,14 +17,11 @@
 <body>
   <div id="app">
     
+    <div id="flash-overlay"></div>
+
     <div id="video-container">
       <video id="webcam" autoplay playsinline muted></video>
       <canvas id="overlay"></canvas>
-    </div>
-
-    <div id="voice-indicator">
-        <div class="mic-icon">🎙️</div>
-        <span id="voice-status-text">Listening...</span>
     </div>
 
     <div id="loading-status">Starting Engine...</div>
@@ -35,29 +32,32 @@
           <img src="logo.png" alt="Jewels-ai Logo" class="brand-logo" />
         </div>
         <div class="action-row">
+          <button id="voice-btn" onclick="toggleVoiceControl()" title="Toggle Voice Control">🎙️</button>
           <button id="gallery-btn" onclick="showGallery()" title="Open Gallery">🖼️</button>
           <button id="snapshot-btn" onclick="takeSnapshot()" title="Take Photo">📷</button>
         </div>
       </div>
 
       <div class="controls-panel">
+        <button id="tryall-btn" class="pill accent" onclick="toggleTryAll()">Try All</button>
         <div id="jewelry-mode" class="pill-group">
           <button class="pill" onclick="selectJewelryType('earrings')">Earrings</button>
           <button class="pill" onclick="selectJewelryType('chains')">Chains</button>
           <button class="pill" onclick="selectJewelryType('rings')">Rings</button>
           <button class="pill" onclick="selectJewelryType('bangles')">Bangles</button>
-          <button id="tryall-btn" class="pill accent" onclick="toggleTryAll()">Try All</button>
         </div>
-        
         <div id="jewelry-options" class="carousel-cards" style="display:none;"></div>
       </div>
     </header>
 
+    <div id="voice-indicator">
+        <div class="mic-icon">🎙️</div>
+        <span id="voice-status-text">Listening...</span>
+    </div>
+
     <div id="preview-modal">
         <span class="close-preview" onclick="closePreview()">&times;</span>
-        <div class="preview-container">
-            <img id="preview-image" src="" alt="Captured Look">
-        </div>
+        <div class="preview-container"><img id="preview-image" src=""></div>
         <div class="preview-actions">
             <button class="pill accent" onclick="downloadSingleSnapshot()">WhatsApp / Download</button>
             <button class="pill" onclick="shareSingleSnapshot()">Share</button>
@@ -77,27 +77,21 @@
 
     <div id="lightbox-overlay">
         <span class="close-lightbox" onclick="closeLightbox()">&times;</span>
-        <div class="lightbox-main">
-            <img id="lightbox-image" src="" alt="Zoomed View">
-        </div>
+        <div class="lightbox-nav prev" onclick="changeLightboxImage(-1)">&#10094;</div>
+        <div class="lightbox-nav next" onclick="changeLightboxImage(1)">&#10095;</div>
+        <div class="lightbox-main"><img id="lightbox-image" src=""></div>
     </div>
 
     <div id="whatsapp-modal" class="modal-overlay">
         <div class="modal-box">
-            <h2 style="color:#d4af37; font-family:'Playfair Display';">Send to WhatsApp</h2>
-            <p style="color:#ccc; font-size:14px;">Enter your number to receive this photo instantly.</p>
-            <input type="tel" id="user-phone" placeholder="+91 9876543210" class="input-dark">
-            <button class="pill accent" onclick="confirmWhatsAppDownload()">Send & Download</button>
+            <h2 style="color:#d4af37;">Send to WhatsApp</h2>
+            <input type="tel" id="user-phone" placeholder="+91..." class="input-dark">
+            <button class="pill accent" onclick="confirmWhatsAppDownload()">Send</button>
             <button onclick="closeWhatsAppModal()" class="btn-text">Cancel</button>
         </div>
     </div>
 
-    <div id="process-overlay">
-        <div class="process-box">
-            <div class="spinner"></div>
-            <p id="process-text" style="color:white; margin-top:10px;">Processing...</p>
-        </div>
-    </div>
+    <div id="process-overlay"><div class="process-box"><div class="spinner"></div><p id="process-text">Processing...</p></div></div>
 
   </div>
   <script src="script.js"></script>
