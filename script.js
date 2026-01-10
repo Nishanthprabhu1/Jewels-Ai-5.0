@@ -1,4 +1,4 @@
-/* script.js - Jewels-Ai Atelier: Gallery, Zoom & Voice */
+/* script.js - Jewels-Ai Atelier: Fixed Mirroring & Positioning */
 
 /* --- CONFIGURATION --- */
 const API_KEY = "AIzaSyAXG3iG2oQjUA_BpnO8dK8y-MHJ7HLrhyE"; 
@@ -30,9 +30,6 @@ let isProcessingHand = false, isProcessingFace = false;
 let lastGestureTime = 0;
 const GESTURE_COOLDOWN = 800; 
 let previousHandX = null;     
-
-/* Camera State */
-let currentFacingMode = 'user'; 
 
 /* Gallery & Voice State */
 let currentLightboxIndex = 0;
@@ -103,7 +100,7 @@ function processVoiceCommand(cmd) {
     else if (cmd.includes('photo') || cmd.includes('capture')) takeSnapshot();
     else if (cmd.includes('gallery')) showGallery();
     else if (cmd.includes('earring')) selectJewelryType('earrings');
-    else if (cmd.includes('chain')) selectJewelryType('chains');
+    else if (cmd.includes('chain') || cmd.includes('necklace')) selectJewelryType('chains');
     else if (cmd.includes('ring')) selectJewelryType('rings');
     else if (cmd.includes('bangle')) selectJewelryType('bangles');
 }
@@ -147,44 +144,14 @@ async function preloadCategory(type) {
     }
 }
 
-/* --- 4. CAMERA SWITCHING LOGIC --- */
-async function switchCamera(targetMode) {
-    if (currentFacingMode === targetMode) return; 
-    loadingStatus.style.display = 'block';
-    loadingStatus.textContent = targetMode === 'user' ? "Switching to Front Camera..." : "Switching to Back Camera...";
-    
-    if (videoElement.srcObject) {
-        videoElement.srcObject.getTracks().forEach(track => track.stop());
-    }
-
-    try {
-        currentFacingMode = targetMode;
-        if (targetMode === 'environment') videoElement.classList.add('no-mirror');
-        else videoElement.classList.remove('no-mirror');
-
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: targetMode } 
-        });
-        
-        videoElement.srcObject = stream;
-        videoElement.onloadeddata = () => { videoElement.play(); loadingStatus.style.display = 'none'; };
-    } catch (err) {
-        console.error("Camera switch failed:", err);
-        alert("Could not switch camera.");
-        loadingStatus.style.display = 'none';
-    }
-}
-
-/* --- 5. UI & SELECTION --- */
+/* --- 4. UI & SELECTION --- */
 async function selectJewelryType(type) {
   currentType = type;
   if(type !== 'earrings') earringImg = null; if(type !== 'chains') necklaceImg = null;
   if(type !== 'rings') ringImg = null; if(type !== 'bangles') bangleImg = null;
 
-  if (type === 'rings' || type === 'bangles') await switchCamera('environment'); 
-  else await switchCamera('user'); 
-
   await preloadCategory(type); 
+  
   if (PRELOADED_IMAGES[type] && PRELOADED_IMAGES[type].length > 0) {
       updateSelection(PRELOADED_IMAGES[type][0]);
   }
@@ -220,7 +187,7 @@ function navigateJewelry(dir) {
   updateSelection(list[nextIdx]);
 }
 
-/* --- 6. AUTO-TRY & CAPTURE --- */
+/* --- 5. AUTO-TRY & CAPTURE --- */
 function toggleTryAll() {
     if (!currentType) { alert("Select category!"); return; }
     if (autoTryRunning) stopAutoTry(); else startAutoTry();
@@ -256,9 +223,8 @@ function captureToGallery() {
   const tempCanvas = document.createElement('canvas'); tempCanvas.width = videoElement.videoWidth; tempCanvas.height = videoElement.videoHeight;
   const tempCtx = tempCanvas.getContext('2d');
   
-  if (currentFacingMode === 'user') {
-      tempCtx.translate(tempCanvas.width, 0); tempCtx.scale(-1, 1); 
-  }
+  // ALWAYS MIRROR CANVAS TO MATCH SELFIE MODE
+  tempCtx.translate(tempCanvas.width, 0); tempCtx.scale(-1, 1); 
   
   tempCtx.drawImage(videoElement, 0, 0);
   tempCtx.setTransform(1, 0, 0, 1, 0, 0); 
@@ -291,7 +257,7 @@ function captureToGallery() {
   const galBtn = document.getElementById('gallery-btn');
   if(galBtn) {
       galBtn.style.backgroundImage = `url(${dataUrl})`;
-      galBtn.innerText = ''; // Remove emoji
+      galBtn.innerText = ''; 
   }
 
   return { url: dataUrl, name: `${safeName}_${Date.now()}.png` }; 
@@ -302,21 +268,29 @@ function takeSnapshot() {
     document.getElementById('preview-image').src = shotData.url; document.getElementById('preview-modal').style.display = 'flex'; 
 }
 
-/* --- 7. GALLERY & LIGHTBOX (FIXED) --- */
+/* --- 6. GALLERY & LIGHTBOX --- */
 function showGallery() {
   const grid = document.getElementById('gallery-grid'); grid.innerHTML = '';
   
   if (autoSnapshots.length === 0) {
       const msg = document.createElement('p');
-      msg.innerText = "No photos yet.";
-      msg.style.color = "#ccc";
+      msg.innerText = "No photos taken yet.";
+      msg.style.color = "#666";
+      msg.style.textAlign = "center";
       msg.style.width = "100%";
       grid.appendChild(msg);
   } else {
       autoSnapshots.forEach((item, index) => {
-        const img = document.createElement('img'); img.src = item.url; img.className = "gallery-thumb";
-        img.onclick = () => openLightbox(index); // Connects icon to zoom function
-        grid.appendChild(img);
+        const wrapper = document.createElement('div');
+        wrapper.className = "gallery-item-wrapper";
+        wrapper.onclick = () => openLightbox(index);
+
+        const img = document.createElement('img'); 
+        img.src = item.url; 
+        img.className = "gallery-thumb";
+        
+        wrapper.appendChild(img);
+        grid.appendChild(wrapper);
       });
   }
   document.getElementById('gallery-modal').style.display = 'flex';
@@ -338,7 +312,7 @@ function closeGallery() { document.getElementById('gallery-modal').style.display
 function closeLightbox() { document.getElementById('lightbox-overlay').style.display = 'none'; }
 function closePreview() { document.getElementById('preview-modal').style.display = 'none'; }
 
-/* --- 8. WHATSAPP & DOWNLOAD --- */
+/* --- 7. WHATSAPP & DOWNLOAD --- */
 function confirmWhatsAppDownload() {
     const phoneInput = document.getElementById('user-phone');
     const phone = phoneInput.value.trim();
@@ -392,7 +366,7 @@ async function shareSingleSnapshot() {
     else alert("Share not supported.");
 }
 
-/* --- 9. PHYSICS & AI CORE --- */
+/* --- 8. PHYSICS & AI CORE (FIXED HAND DIRECTION) --- */
 function calculateAngle(p1, p2) { return Math.atan2(p2.y - p1.y, p2.x - p1.x); }
 
 const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
@@ -400,9 +374,10 @@ hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0
 hands.onResults((results) => {
   isProcessingHand = false; 
   const w = canvasElement.width; const h = canvasElement.height;
+  
   canvasCtx.save();
-  if (currentFacingMode === 'user') { canvasCtx.translate(w, 0); canvasCtx.scale(-1, 1); } 
-  else { canvasCtx.setTransform(1, 0, 0, 1, 0, 0); }
+  // FORCE MIRROR to align with selfie camera
+  canvasCtx.translate(w, 0); canvasCtx.scale(-1, 1); 
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
       const lm = results.multiHandLandmarks[0];
@@ -419,7 +394,9 @@ hands.onResults((results) => {
           const armAngle = calculateAngle(wrist, { x: lm[9].x * w, y: lm[9].y * h });
           const bWidth = wristWidth * 1.6; const bHeight = (bangleImg.height / bangleImg.width) * bWidth;
           canvasCtx.save(); canvasCtx.translate(wrist.x, wrist.y); canvasCtx.rotate(armAngle - (Math.PI / 2));
-          canvasCtx.drawImage(bangleImg, -bWidth/2, -bHeight/2 + (wristWidth * 0.4), bWidth, bHeight); canvasCtx.restore();
+          // Corrected Bangle Position (Up the arm)
+          canvasCtx.drawImage(bangleImg, -bWidth/2, -bHeight/2 + (wristWidth * 0.4), bWidth, bHeight); 
+          canvasCtx.restore();
       }
       if (!autoTryRunning) {
           const now = Date.now();
@@ -447,8 +424,8 @@ faceMesh.onResults((results) => {
   canvasCtx.fillStyle = 'rgba(255, 220, 180, 0.15)'; canvasCtx.fillRect(0,0, canvasElement.width, canvasElement.height);
   canvasCtx.globalCompositeOperation = 'source-over'; 
   
-  if (currentFacingMode === 'user') { canvasCtx.translate(canvasElement.width, 0); canvasCtx.scale(-1, 1); }
-  else { canvasCtx.setTransform(1, 0, 0, 1, 0, 0); }
+  // FORCE MIRROR
+  canvasCtx.translate(canvasElement.width, 0); canvasCtx.scale(-1, 1);
 
   if (results.multiFaceLandmarks && results.multiFaceLandmarks[0]) {
     const lm = results.multiFaceLandmarks[0]; const w = canvasElement.width; const h = canvasElement.height;
@@ -476,10 +453,9 @@ faceMesh.onResults((results) => {
   canvasCtx.restore();
 });
 
-/* --- INIT CAMERA --- */
+/* --- INIT CAMERA (Force User Mode) --- */
 async function startCameraFast() {
     try {
-        currentFacingMode = 'user'; // Reset to user on start
         const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" } });
         videoElement.srcObject = stream;
         videoElement.onloadeddata = () => { videoElement.play(); loadingStatus.textContent = "Loading AI Models..."; detectLoop(); initVoiceControl(); };
