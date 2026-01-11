@@ -1,4 +1,4 @@
-/* script.js - Jewels-Ai Atelier: Back Camera Update for Rings/Bangles */
+/* script.js - Jewels-Ai Atelier: Fixed Earring Placement (Lobe Correction) */
 
 /* --- CONFIGURATION --- */
 const API_KEY = "AIzaSyAXG3iG2oQjUA_BpnO8dK8y-MHJ7HLrhyE"; 
@@ -37,9 +37,9 @@ let currentCameraMode = 'user'; // 'user' (Front) or 'environment' (Back)
 /* Gallery State */
 let currentLightboxIndex = 0;
 
-/* Voice State (New) */
+/* Voice State */
 let recognition = null;
-let voiceEnabled = true; // Default ON
+let voiceEnabled = true; 
 
 /* Physics State */
 let physics = { earringVelocity: 0, earringAngle: 0 };
@@ -90,7 +90,6 @@ function initVoiceControl() {
 
         try { recognition.start(); } catch(e) { console.log("Voice start error", e); }
     } else {
-        console.warn("Voice API not supported.");
         const btn = document.getElementById('voice-btn');
         if(btn) btn.style.display = 'none';
     }
@@ -220,15 +219,12 @@ hands.onResults((results) => {
   const w = canvasElement.width; const h = canvasElement.height;
   canvasCtx.save(); 
 
-  // --- MIRROR LOGIC: Only mirror if Front Camera ('user') ---
+  /* Hand Mode Camera Logic */
   if (currentCameraMode === 'environment') {
-      canvasCtx.translate(0, 0); 
-      canvasCtx.scale(1, 1); 
+      canvasCtx.translate(0, 0); canvasCtx.scale(1, 1); 
   } else {
-      canvasCtx.translate(w, 0); 
-      canvasCtx.scale(-1, 1);
+      canvasCtx.translate(w, 0); canvasCtx.scale(-1, 1);
   }
-  // -----------------------------------------------------------
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
       const lm = results.multiHandLandmarks[0];
@@ -273,13 +269,17 @@ faceMesh.onResults((results) => {
   canvasCtx.fillStyle = 'rgba(255, 220, 180, 0.15)'; canvasCtx.fillRect(0,0, canvasElement.width, canvasElement.height);
   canvasCtx.globalCompositeOperation = 'source-over'; 
   
-  // Face always mirrors because it's always Front Camera in this logic
+  // Face is always Selfie Mode (Mirror)
   canvasCtx.translate(canvasElement.width, 0); canvasCtx.scale(-1, 1);
 
   if (results.multiFaceLandmarks && results.multiFaceLandmarks[0]) {
     const lm = results.multiFaceLandmarks[0]; const w = canvasElement.width; const h = canvasElement.height;
-    const leftEar = { x: lm[132].x * w, y: lm[132].y * h }; const rightEar = { x: lm[361].x * w, y: lm[361].y * h };
-    const neck = { x: lm[152].x * w, y: lm[152].y * h }; const nose = { x: lm[1].x * w, y: lm[1].y * h };
+    
+    // Ear Landmarks (Tragus area)
+    const leftEar = { x: lm[132].x * w, y: lm[132].y * h }; 
+    const rightEar = { x: lm[361].x * w, y: lm[361].y * h };
+    const neck = { x: lm[152].x * w, y: lm[152].y * h }; 
+    const nose = { x: lm[1].x * w, y: lm[1].y * h };
 
     const rawHeadTilt = Math.atan2(rightEar.y - leftEar.y, rightEar.x - leftEar.x);
     const gravityTarget = -rawHeadTilt; const force = (gravityTarget - physics.earringAngle) * 0.08; 
@@ -287,13 +287,37 @@ faceMesh.onResults((results) => {
     const earDist = Math.hypot(rightEar.x - leftEar.x, rightEar.y - leftEar.y);
 
     if (earringImg && earringImg.complete) {
-      let ew = earDist * 0.25; let eh = (earringImg.height/earringImg.width) * ew;
+      // 1. Size Adjustment: Increased from 0.25 to 0.35 for better visibility
+      let ew = earDist * 0.35; 
+      let eh = (earringImg.height/earringImg.width) * ew;
+
+      // 2. Position Adjustment: Move OUT (lateral) and DOWN (to lobe)
+      const lobeDrop = earDist * 0.15; // Moves earring down from tragus to lobe
+      const lobeOut = earDist * 0.08;  // Moves earring outward to detach from cheek
+      
       const distToLeft = Math.hypot(nose.x - leftEar.x, nose.y - leftEar.y);
       const distToRight = Math.hypot(nose.x - rightEar.x, nose.y - rightEar.y);
       const ratio = distToLeft / (distToLeft + distToRight);
-      if (ratio > 0.2) { canvasCtx.save(); canvasCtx.translate(leftEar.x, leftEar.y); canvasCtx.rotate(physics.earringAngle); canvasCtx.drawImage(earringImg, -ew/2, 0, ew, eh); canvasCtx.restore(); }
-      if (ratio < 0.8) { canvasCtx.save(); canvasCtx.translate(rightEar.x, rightEar.y); canvasCtx.rotate(physics.earringAngle); canvasCtx.drawImage(earringImg, -ew/2, 0, ew, eh); canvasCtx.restore(); }
+
+      // Left Ear (Screen Right): Move LeftEar.x MINUS offset to go Right (Outward)
+      if (ratio > 0.2) { 
+          canvasCtx.save(); 
+          canvasCtx.translate(leftEar.x - lobeOut, leftEar.y + lobeDrop); 
+          canvasCtx.rotate(physics.earringAngle); 
+          canvasCtx.drawImage(earringImg, -ew/2, 0, ew, eh); 
+          canvasCtx.restore(); 
+      }
+
+      // Right Ear (Screen Left): Move RightEar.x PLUS offset to go Left (Outward)
+      if (ratio < 0.8) { 
+          canvasCtx.save(); 
+          canvasCtx.translate(rightEar.x + lobeOut, rightEar.y + lobeDrop); 
+          canvasCtx.rotate(physics.earringAngle); 
+          canvasCtx.drawImage(earringImg, -ew/2, 0, ew, eh); 
+          canvasCtx.restore(); 
+      }
     }
+    
     if (necklaceImg && necklaceImg.complete) {
       let nw = earDist * 0.85; let nh = (necklaceImg.height/necklaceImg.width) * nw;
       canvasCtx.drawImage(necklaceImg, neck.x - nw/2, neck.y + (earDist*0.2), nw, nh);
@@ -302,47 +326,32 @@ faceMesh.onResults((results) => {
   canvasCtx.restore();
 });
 
-/* --- INIT CAMERA (UPDATED) --- */
+/* --- INIT CAMERA --- */
 async function startCameraFast(mode = 'user') {
-    // Prevent switching if already on the correct mode and active
     if (videoElement.srcObject && currentCameraMode === mode && videoElement.readyState >= 2) return;
 
     currentCameraMode = mode;
     loadingStatus.style.display = 'block';
     loadingStatus.textContent = mode === 'environment' ? "Switching to Back Camera..." : "Switching to Selfie Camera...";
 
-    // Stop existing stream
     if (videoElement.srcObject) {
         const tracks = videoElement.srcObject.getTracks();
         tracks.forEach(track => track.stop());
     }
 
-    // Toggle mirror class for CSS (you must add .no-mirror { transform: none !important; } to CSS)
-    if (mode === 'environment') {
-        videoElement.classList.add('no-mirror');
-    } else {
-        videoElement.classList.remove('no-mirror');
-    }
+    if (mode === 'environment') videoElement.classList.add('no-mirror');
+    else videoElement.classList.remove('no-mirror');
 
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-                width: { ideal: 1280 }, 
-                height: { ideal: 720 }, 
-                facingMode: mode // 'user' or 'environment'
-            } 
+            video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: mode } 
         });
         videoElement.srcObject = stream;
         videoElement.onloadeddata = () => { 
-            videoElement.play(); 
-            loadingStatus.style.display = 'none'; 
-            detectLoop(); 
-            if(!recognition) initVoiceControl(); 
+            videoElement.play(); loadingStatus.style.display = 'none'; 
+            detectLoop(); if(!recognition) initVoiceControl(); 
         };
-    } catch (err) { 
-        alert("Camera Error: " + err.message); 
-        loadingStatus.textContent = "Camera Error";
-    }
+    } catch (err) { alert("Camera Error: " + err.message); loadingStatus.textContent = "Camera Error"; }
 }
 
 async function detectLoop() {
@@ -353,7 +362,7 @@ async function detectLoop() {
     requestAnimationFrame(detectLoop);
 }
 
-window.onload = () => startCameraFast('user'); // Default to Selfie
+window.onload = () => startCameraFast('user');
 
 /* --- UI HELPERS --- */
 function navigateJewelry(dir) {
@@ -371,11 +380,8 @@ function navigateJewelry(dir) {
 
 async function selectJewelryType(type) {
   currentType = type;
-
-  // --- AUTOMATIC CAMERA SWITCHING ---
   const targetMode = (type === 'rings' || type === 'bangles') ? 'environment' : 'user';
   await startCameraFast(targetMode);
-  // ----------------------------------
 
   if(type !== 'earrings') earringImg = null; if(type !== 'chains') necklaceImg = null;
   if(type !== 'rings') ringImg = null; if(type !== 'bangles') bangleImg = null;
@@ -433,21 +439,11 @@ function captureToGallery() {
   const tempCanvas = document.createElement('canvas'); tempCanvas.width = videoElement.videoWidth; tempCanvas.height = videoElement.videoHeight;
   const tempCtx = tempCanvas.getContext('2d');
   
-  // --- CAPTURE MIRRORING: Match the current camera mode ---
-  if (currentCameraMode === 'environment') {
-      tempCtx.translate(0, 0); 
-      tempCtx.scale(1, 1); 
-  } else {
-      tempCtx.translate(tempCanvas.width, 0); 
-      tempCtx.scale(-1, 1); 
-  }
-  // --------------------------------------------------------
+  if (currentCameraMode === 'environment') { tempCtx.translate(0, 0); tempCtx.scale(1, 1); } 
+  else { tempCtx.translate(tempCanvas.width, 0); tempCtx.scale(-1, 1); }
 
   tempCtx.drawImage(videoElement, 0, 0);
-  
-  // Reset for overlays so text is readable
   tempCtx.setTransform(1, 0, 0, 1, 0, 0); 
-  
   try { tempCtx.drawImage(canvasElement, 0, 0); } catch(e) {}
   
   let displayName = "Jewels-Ai Look";
@@ -459,8 +455,7 @@ function captureToGallery() {
       if (currentImgObj) {
           const idx = PRELOADED_IMAGES[currentType].indexOf(currentImgObj);
           if (idx !== -1 && JEWELRY_ASSETS[currentType] && JEWELRY_ASSETS[currentType][idx]) {
-              displayName = JEWELRY_ASSETS[currentType][idx].name;
-              displayName = displayName.replace(/\.[^/.]+$/, "");
+              displayName = JEWELRY_ASSETS[currentType][idx].name.replace(/\.[^/.]+$/, "");
           }
       }
   }
@@ -506,14 +501,7 @@ function showGallery() {
         if(cleanName.length > 15) cleanName = cleanName.substring(0,12) + "...";
         
         overlay.innerHTML = `<span class="overlay-text">${cleanName}</span><div class="overlay-icon">👁️</div>`;
-
-        // Update click to set index
-        card.onclick = () => { 
-            currentLightboxIndex = index;
-            document.getElementById('lightbox-image').src = item.url; 
-            document.getElementById('lightbox-overlay').style.display = 'flex'; 
-        };
-        
+        card.onclick = () => { currentLightboxIndex = index; document.getElementById('lightbox-image').src = item.url; document.getElementById('lightbox-overlay').style.display = 'flex'; };
         card.appendChild(img); card.appendChild(overlay); grid.appendChild(card);
       });
   }
