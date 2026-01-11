@@ -1,4 +1,4 @@
-/* script.js - Jewels-Ai Atelier: Fixed Earring Placement (Lobe Correction) */
+/* script.js - Jewels-Ai Atelier: FIXED Earring Placement (Outward & Lower) */
 
 /* --- CONFIGURATION --- */
 const API_KEY = "AIzaSyAXG3iG2oQjUA_BpnO8dK8y-MHJ7HLrhyE"; 
@@ -32,7 +32,7 @@ const GESTURE_COOLDOWN = 800;
 let previousHandX = null;     
 
 /* Camera State */
-let currentCameraMode = 'user'; // 'user' (Front) or 'environment' (Back)
+let currentCameraMode = 'user'; 
 
 /* Gallery State */
 let currentLightboxIndex = 0;
@@ -287,31 +287,32 @@ faceMesh.onResults((results) => {
     const earDist = Math.hypot(rightEar.x - leftEar.x, rightEar.y - leftEar.y);
 
     if (earringImg && earringImg.complete) {
-      // 1. Size Adjustment: Increased from 0.25 to 0.35 for better visibility
       let ew = earDist * 0.35; 
       let eh = (earringImg.height/earringImg.width) * ew;
 
-      // 2. Position Adjustment: Move OUT (lateral) and DOWN (to lobe)
-      const lobeDrop = earDist * 0.15; // Moves earring down from tragus to lobe
-      const lobeOut = earDist * 0.08;  // Moves earring outward to detach from cheek
+      /* --- PLACEMENT FIX --- */
+      // 1. Drop it lower to hit the lobe (Increased from 0.15 to 0.32)
+      const lobeDrop = earDist * 0.32; 
+      // 2. Push it further OUT from cheek (Increased from 0.08 to 0.15)
+      const lobeOut = earDist * 0.15;  
       
       const distToLeft = Math.hypot(nose.x - leftEar.x, nose.y - leftEar.y);
       const distToRight = Math.hypot(nose.x - rightEar.x, nose.y - rightEar.y);
       const ratio = distToLeft / (distToLeft + distToRight);
 
-      // Left Ear (Screen Right): Move LeftEar.x MINUS offset to go Right (Outward)
+      // Left Ear (Screen Right): ADD to go Outward (Right)
       if (ratio > 0.2) { 
           canvasCtx.save(); 
-          canvasCtx.translate(leftEar.x - lobeOut, leftEar.y + lobeDrop); 
+          canvasCtx.translate(leftEar.x + lobeOut, leftEar.y + lobeDrop); // CHANGED - to +
           canvasCtx.rotate(physics.earringAngle); 
           canvasCtx.drawImage(earringImg, -ew/2, 0, ew, eh); 
           canvasCtx.restore(); 
       }
 
-      // Right Ear (Screen Left): Move RightEar.x PLUS offset to go Left (Outward)
+      // Right Ear (Screen Left): SUBTRACT to go Outward (Left)
       if (ratio < 0.8) { 
           canvasCtx.save(); 
-          canvasCtx.translate(rightEar.x + lobeOut, rightEar.y + lobeDrop); 
+          canvasCtx.translate(rightEar.x - lobeOut, rightEar.y + lobeDrop); // CHANGED + to -
           canvasCtx.rotate(physics.earringAngle); 
           canvasCtx.drawImage(earringImg, -ew/2, 0, ew, eh); 
           canvasCtx.restore(); 
