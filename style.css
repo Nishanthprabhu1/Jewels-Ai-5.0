@@ -206,3 +206,8 @@ body {
     border-radius: 50%; animation: spin 1s linear infinite;
 }
 @keyframes spin { 100% { transform: rotate(360deg); } }
+/* --- 9. DYNAMIC CAMERA MIRRORING --- */
+/* When class 'no-mirror' is added via JS, stop flipping the video */
+#webcam.no-mirror {
+    transform: none !important; 
+}

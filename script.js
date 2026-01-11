@@ -1,4 +1,4 @@
-/* script.js - Jewels-Ai Atelier: Voice Toggle Button Enabled */
+/* script.js - Jewels-Ai Atelier: Back Camera Update for Rings/Bangles */
 
 /* --- CONFIGURATION --- */
 const API_KEY = "AIzaSyAXG3iG2oQjUA_BpnO8dK8y-MHJ7HLrhyE"; 
@@ -31,6 +31,9 @@ let lastGestureTime = 0;
 const GESTURE_COOLDOWN = 800; 
 let previousHandX = null;     
 
+/* Camera State */
+let currentCameraMode = 'user'; // 'user' (Front) or 'environment' (Back)
+
 /* Gallery State */
 let currentLightboxIndex = 0;
 
@@ -58,12 +61,12 @@ function triggerFlash() {
     setTimeout(() => { flashOverlay.classList.remove('flash-active'); }, 300);
 }
 
-/* --- 2. VOICE RECOGNITION AI (UPDATED: With Toggle) --- */
+/* --- 2. VOICE RECOGNITION AI --- */
 function initVoiceControl() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (SpeechRecognition) {
-        recognition = new SpeechRecognition(); // Assign to global variable
+        recognition = new SpeechRecognition(); 
         recognition.continuous = true; 
         recognition.interimResults = false;
         recognition.lang = 'en-US';
@@ -75,7 +78,6 @@ function initVoiceControl() {
             processVoiceCommand(command);
         };
 
-        // Smart Restart (Only if enabled)
         recognition.onend = () => {
             if (voiceEnabled) {
                 setTimeout(() => {
@@ -89,7 +91,6 @@ function initVoiceControl() {
         try { recognition.start(); } catch(e) { console.log("Voice start error", e); }
     } else {
         console.warn("Voice API not supported.");
-        // Hide button if not supported
         const btn = document.getElementById('voice-btn');
         if(btn) btn.style.display = 'none';
     }
@@ -100,13 +101,11 @@ function toggleVoiceControl() {
     if(!recognition) return;
 
     if (voiceEnabled) {
-        // Turn OFF
         voiceEnabled = false;
         recognition.stop();
-        btn.innerHTML = '🔇';
+        btn.innerHTML = '🎙️';
         btn.classList.add('voice-off');
     } else {
-        // Turn ON
         voiceEnabled = true;
         try { recognition.start(); } catch(e) {}
         btn.innerHTML = '🎙️';
@@ -215,10 +214,21 @@ function calculateAngle(p1, p2) { return Math.atan2(p2.y - p1.y, p2.x - p1.x); }
 
 const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
 hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+
 hands.onResults((results) => {
   isProcessingHand = false; 
   const w = canvasElement.width; const h = canvasElement.height;
-  canvasCtx.save(); canvasCtx.translate(w, 0); canvasCtx.scale(-1, 1);
+  canvasCtx.save(); 
+
+  // --- MIRROR LOGIC: Only mirror if Front Camera ('user') ---
+  if (currentCameraMode === 'environment') {
+      canvasCtx.translate(0, 0); 
+      canvasCtx.scale(1, 1); 
+  } else {
+      canvasCtx.translate(w, 0); 
+      canvasCtx.scale(-1, 1);
+  }
+  // -----------------------------------------------------------
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
       const lm = results.multiHandLandmarks[0];
@@ -262,6 +272,8 @@ faceMesh.onResults((results) => {
   canvasCtx.globalCompositeOperation = 'overlay';
   canvasCtx.fillStyle = 'rgba(255, 220, 180, 0.15)'; canvasCtx.fillRect(0,0, canvasElement.width, canvasElement.height);
   canvasCtx.globalCompositeOperation = 'source-over'; 
+  
+  // Face always mirrors because it's always Front Camera in this logic
   canvasCtx.translate(canvasElement.width, 0); canvasCtx.scale(-1, 1);
 
   if (results.multiFaceLandmarks && results.multiFaceLandmarks[0]) {
@@ -290,14 +302,49 @@ faceMesh.onResults((results) => {
   canvasCtx.restore();
 });
 
-/* --- INIT CAMERA --- */
-async function startCameraFast() {
+/* --- INIT CAMERA (UPDATED) --- */
+async function startCameraFast(mode = 'user') {
+    // Prevent switching if already on the correct mode and active
+    if (videoElement.srcObject && currentCameraMode === mode && videoElement.readyState >= 2) return;
+
+    currentCameraMode = mode;
+    loadingStatus.style.display = 'block';
+    loadingStatus.textContent = mode === 'environment' ? "Switching to Back Camera..." : "Switching to Selfie Camera...";
+
+    // Stop existing stream
+    if (videoElement.srcObject) {
+        const tracks = videoElement.srcObject.getTracks();
+        tracks.forEach(track => track.stop());
+    }
+
+    // Toggle mirror class for CSS (you must add .no-mirror { transform: none !important; } to CSS)
+    if (mode === 'environment') {
+        videoElement.classList.add('no-mirror');
+    } else {
+        videoElement.classList.remove('no-mirror');
+    }
+
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" } });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                width: { ideal: 1280 }, 
+                height: { ideal: 720 }, 
+                facingMode: mode // 'user' or 'environment'
+            } 
+        });
         videoElement.srcObject = stream;
-        videoElement.onloadeddata = () => { videoElement.play(); loadingStatus.textContent = "Loading AI Models..."; detectLoop(); initVoiceControl(); };
-    } catch (err) { alert("Camera Error: Check Permissions"); }
+        videoElement.onloadeddata = () => { 
+            videoElement.play(); 
+            loadingStatus.style.display = 'none'; 
+            detectLoop(); 
+            if(!recognition) initVoiceControl(); 
+        };
+    } catch (err) { 
+        alert("Camera Error: " + err.message); 
+        loadingStatus.textContent = "Camera Error";
+    }
 }
+
 async function detectLoop() {
     if (videoElement.readyState >= 2) {
         if (!isProcessingFace) { isProcessingFace = true; await faceMesh.send({image: videoElement}); }
@@ -305,7 +352,8 @@ async function detectLoop() {
     }
     requestAnimationFrame(detectLoop);
 }
-window.onload = startCameraFast;
+
+window.onload = () => startCameraFast('user'); // Default to Selfie
 
 /* --- UI HELPERS --- */
 function navigateJewelry(dir) {
@@ -323,6 +371,12 @@ function navigateJewelry(dir) {
 
 async function selectJewelryType(type) {
   currentType = type;
+
+  // --- AUTOMATIC CAMERA SWITCHING ---
+  const targetMode = (type === 'rings' || type === 'bangles') ? 'environment' : 'user';
+  await startCameraFast(targetMode);
+  // ----------------------------------
+
   if(type !== 'earrings') earringImg = null; if(type !== 'chains') necklaceImg = null;
   if(type !== 'rings') ringImg = null; if(type !== 'bangles') bangleImg = null;
 
@@ -378,8 +432,23 @@ async function runAutoStep() {
 function captureToGallery() {
   const tempCanvas = document.createElement('canvas'); tempCanvas.width = videoElement.videoWidth; tempCanvas.height = videoElement.videoHeight;
   const tempCtx = tempCanvas.getContext('2d');
-  tempCtx.translate(tempCanvas.width, 0); tempCtx.scale(-1, 1); tempCtx.drawImage(videoElement, 0, 0);
-  tempCtx.setTransform(1, 0, 0, 1, 0, 0); try { tempCtx.drawImage(canvasElement, 0, 0); } catch(e) {}
+  
+  // --- CAPTURE MIRRORING: Match the current camera mode ---
+  if (currentCameraMode === 'environment') {
+      tempCtx.translate(0, 0); 
+      tempCtx.scale(1, 1); 
+  } else {
+      tempCtx.translate(tempCanvas.width, 0); 
+      tempCtx.scale(-1, 1); 
+  }
+  // --------------------------------------------------------
+
+  tempCtx.drawImage(videoElement, 0, 0);
+  
+  // Reset for overlays so text is readable
+  tempCtx.setTransform(1, 0, 0, 1, 0, 0); 
+  
+  try { tempCtx.drawImage(canvasElement, 0, 0); } catch(e) {}
   
   let displayName = "Jewels-Ai Look";
   if (currentType && PRELOADED_IMAGES[currentType]) {
@@ -436,7 +505,7 @@ function showGallery() {
         let cleanName = item.name.replace("Jewels-Ai_", "").replace(".png", "").replace(/_\d+$/, "");
         if(cleanName.length > 15) cleanName = cleanName.substring(0,12) + "...";
         
-        overlay.innerHTML = `<span class="overlay-text">${cleanName}</span><div class="overlay-icon">🔍</div>`;
+        overlay.innerHTML = `<span class="overlay-text">${cleanName}</span><div class="overlay-icon">👁️</div>`;
 
         // Update click to set index
         card.onclick = () => { 
